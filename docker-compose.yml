@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: bingo-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: bingodb
+      POSTGRES_USER: bingo_user
+      POSTGRES_PASSWORD: bingo_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:
