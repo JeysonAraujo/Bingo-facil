@@ -5,8 +5,17 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: () => import('@/App.vue') // Temporarily load main app view
+      redirect: '/admin'
+    },
+    {
+      path: '/admin',
+      name: 'admin-dashboard',
+      component: () => import('../components/admin/AdminDashboard.vue')
+    },
+    {
+      path: '/admin/events/new',
+      name: 'event-creator',
+      component: () => import('../components/admin/EventCreator.vue')
     }
   ]
 })

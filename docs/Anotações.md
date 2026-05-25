@@ -78,3 +78,5 @@ Na verdade o nome está errado, seria bingo-ai se puder corrigir isso no briefin
 2. Acredito que uma dor não só para idosos mas para outras pessoas leigas é a questão do sistema não possuir um guia antes de usar. Como o foco não é apenas idosos um guia de uso mostrando passo a passo de como participar do sorteio seria interessante.
 
 3. A aplicação não seria focada apenas em um dispositivo, deve ser resposiva para adaptar em diferentes formatos de tela. Como computadores, tablets e smartphones.
+
+Story 1.2 (Event and prize structure administrative rest API and UI) 

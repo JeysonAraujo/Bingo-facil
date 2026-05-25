@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@stomp/stompjs": "^7.0.0",
+    "axios": "^1.16.1",
     "pinia": "^2.1.7",
     "roboto-fontface": "*",
     "vue": "^3.4.21",
