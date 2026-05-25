@@ -80,3 +80,8 @@ Na verdade o nome está errado, seria bingo-ai se puder corrigir isso no briefin
 3. A aplicação não seria focada apenas em um dispositivo, deve ser resposiva para adaptar em diferentes formatos de tela. Como computadores, tablets e smartphones.
 
 Story 1.2 (Event and prize structure administrative rest API and UI) 
+
+
+
+Repositório Git
+https://github.com/JeysonAraujo/bingo-ai.git
