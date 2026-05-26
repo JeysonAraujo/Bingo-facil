@@ -54,6 +54,30 @@ export interface CreateEventRequest {
   rounds: CreateRoundRequest[]
 }
 
+// Ticket Activation interfaces (Story 2.1)
+export interface CardMatrixDto {
+  b: number[]
+  i: number[]
+  n: number[]
+  g: number[]
+  o: number[]
+}
+
+export interface TicketMatrixDto {
+  cards: CardMatrixDto[]
+}
+
+export interface TicketActivationResponseDto {
+  ticketId: string
+  sessionToken: string
+  serial: string
+  matrix: TicketMatrixDto
+}
+
+export interface ActivateTicketRequest {
+  serial: string
+}
+
 // Pre-configured Axios instance
 const api = axios.create({
   baseURL: 'http://localhost:8080/api/v1',
