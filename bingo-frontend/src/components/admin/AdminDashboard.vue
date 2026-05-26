@@ -126,17 +126,51 @@
           <v-divider></v-divider>
 
           <!-- Card Footer Actions -->
-          <v-card-actions class="pa-4 bg-grey-lighten-5">
+          <v-card-actions class="pa-4 bg-grey-lighten-5 d-flex flex-column align-stretch">
             <v-btn
               color="primary"
               variant="elevated"
               block
               append-icon="mdi-arrow-right"
-              class="font-weight-bold rounded-lg py-2"
+              class="font-weight-bold rounded-lg py-2 mb-2"
               min-height="40px"
             >
               Gerenciar Evento
             </v-btn>
+            <div class="d-flex justify-space-between w-100">
+              <v-btn
+                color="secondary"
+                variant="outlined"
+                prepend-icon="mdi-ticket"
+                class="flex-grow-1 mr-1"
+                :loading="adminStore.isLoading"
+                :disabled="adminStore.isLoading"
+                @click="adminStore.generateTickets(event.id, 500)"
+              >
+                Gerar Cartelas
+              </v-btn>
+              <v-btn
+                color="success"
+                variant="outlined"
+                prepend-icon="mdi-file-pdf-box"
+                class="flex-grow-1 ml-1"
+                :loading="adminStore.isLoading"
+                :disabled="adminStore.isLoading"
+                @click="adminStore.downloadTicketsPdf(event.id)"
+              >
+                Baixar PDF
+              </v-btn>
+            </div>
+            <v-alert
+              v-if="adminStore.error"
+              type="error"
+              density="compact"
+              class="mt-2 text-caption"
+              closable
+              @click:close="adminStore.error = null"
+            >
+              {{ adminStore.error }}
+            </v-alert>
           </v-card-actions>
         </v-card>
       </v-col>

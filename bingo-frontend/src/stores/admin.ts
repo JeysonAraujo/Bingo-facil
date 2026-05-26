@@ -47,6 +47,44 @@ export const useAdminStore = defineStore('admin', {
       } finally {
         this.isLoading = false
       }
+    },
+
+    async generateTickets(eventId: string, quantity: number = 500): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.post(`/events/${eventId}/tickets/generate?quantity=${quantity}`)
+        return response.status === 201 || response.status === 200
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao gerar cartelas'
+        return false
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async downloadTicketsPdf(eventId: string): Promise<void> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.get(`/events/${eventId}/tickets/pdf`, {
+          responseType: 'blob'
+        })
+        const url = window.URL.createObjectURL(new Blob([response.data]))
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `tickets-${eventId}.pdf`)
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        window.URL.revokeObjectURL(url)
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao baixar o PDF'
+      } finally {
+        this.isLoading = false
+      }
     }
   }
 })

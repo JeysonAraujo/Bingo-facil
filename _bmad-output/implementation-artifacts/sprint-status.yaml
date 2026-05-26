@@ -1,5 +1,5 @@
 # generated: 2026-05-25T14:18:00Z
-# last_updated: 2026-05-25T14:51:00Z
+# last_updated: 2026-05-26T14:40:00Z
 # project: bingo-ai
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-05-25T14:18:00Z
-last_updated: 2026-05-25T14:51:00Z
+last_updated: 2026-05-26T14:40:00Z
 project: bingo-ai
 project_key: NOKEY
 tracking_system: file-system
@@ -45,7 +45,7 @@ development_status:
   epic-1: in-progress
   1-1-multi-module-project-structure-and-flyway-schema-setup: done
   1-2-event-and-prize-structure-administrative-rest-api-and-ui: done
-  1-3-secure-ticket-grid-generation-and-printable-pdf-batch-export: ready-for-dev
+  1-3-secure-ticket-grid-generation-and-printable-pdf-batch-export: done
   epic-1-retrospective: optional
   epic-2: backlog
   2-1-instant-player-session-activation-via-qr-serial: backlog
