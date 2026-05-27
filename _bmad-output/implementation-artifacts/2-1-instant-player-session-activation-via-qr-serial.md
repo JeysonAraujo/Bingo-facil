@@ -1,6 +1,6 @@
 # Story 2.1: Instant Player Session Activation via QR / Serial
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -66,6 +66,12 @@ so that I can instantly activate my ticket and join the digital game room withou
   - [x] Test: activation of already-activated serial → 409.
   - [x] Test: activation of a non-existent serial → 404.
   - [x] Test: activation with blank serial → 400 validation error.
+
+### Review Findings
+
+- [x] [Review][Patch] Center FREE Star CSS Styling [bingo-frontend/src/components/player/GameRoom.vue:59]
+- [x] [Review][Patch] Null Reason Fallback in GlobalExceptionHandler [bingo-backend/src/main/java/com/bingoai/backend/common/exception/GlobalExceptionHandler.java:31]
+- [x] [Review][Patch] Concurrency Race Condition on Ticket Activation [bingo-backend/src/main/java/com/bingoai/backend/ticket/TicketActivationService.java:20]
 
 ## Dev Notes
 

@@ -3,7 +3,6 @@ package com.bingoai.backend.common.exception;
 import com.bingoai.backend.common.dto.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -28,8 +27,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiResponse<Void>> handleResponseStatusException(ResponseStatusException ex) {
         String code = ex.getStatusCode().toString().replace(" ", "_");
+        String message = ex.getReason() != null ? ex.getReason() : ex.getStatusCode().toString();
         return ResponseEntity.status(ex.getStatusCode())
-                .body(ApiResponse.error(code, ex.getReason()));
+                .body(ApiResponse.error(code, message));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

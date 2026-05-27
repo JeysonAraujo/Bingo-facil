@@ -11,6 +11,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.lang.NonNull;
+
 @Service
 public class TicketService {
 
@@ -73,7 +75,7 @@ public class TicketService {
      * Returns the title of the event without loading the LAZY-associated Event entity
      * from within Ticket, avoiding LazyInitializationException in the PDF generator.
      */
-    public Optional<String> getEventTitle(UUID eventId) {
+    public Optional<String> getEventTitle(@NonNull UUID eventId) {
         return eventRepository.findById(eventId).map(Event::getTitle);
     }
 }

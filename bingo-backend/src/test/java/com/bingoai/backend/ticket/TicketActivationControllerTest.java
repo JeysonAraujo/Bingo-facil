@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -85,6 +84,7 @@ class TicketActivationControllerTest {
     }
 
     @Test
+    @SuppressWarnings("null")
     void activateTicket_withValidSerial_returnsSuccess() throws Exception {
         Map<String, String> body = Map.of("serial", validSerial);
 
@@ -100,6 +100,7 @@ class TicketActivationControllerTest {
     }
 
     @Test
+    @SuppressWarnings("null")
     void activateTicket_withAlreadyActivatedSerial_returns409() throws Exception {
         Map<String, String> body = Map.of("serial", activatedSerial);
 
@@ -112,6 +113,7 @@ class TicketActivationControllerTest {
     }
 
     @Test
+    @SuppressWarnings("null")
     void activateTicket_withNonExistentSerial_returns404() throws Exception {
         Map<String, String> body = Map.of("serial", "XXXXXX");
 
@@ -124,6 +126,7 @@ class TicketActivationControllerTest {
     }
 
     @Test
+    @SuppressWarnings("null")
     void activateTicket_withBlankSerial_returns400() throws Exception {
         Map<String, String> body = Map.of("serial", "");
 

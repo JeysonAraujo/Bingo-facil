@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.lang.NonNull;
+
 @Service
 @Transactional(readOnly = true)
 public class EventService {
@@ -52,7 +54,7 @@ public class EventService {
                 .collect(Collectors.toList());
     }
 
-    public EventResponseDto getEventById(UUID id) {
+    public EventResponseDto getEventById(@NonNull UUID id) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + id));
         return mapToResponseDto(event);

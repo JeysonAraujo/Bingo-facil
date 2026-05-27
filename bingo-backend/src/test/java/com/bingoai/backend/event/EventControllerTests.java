@@ -35,6 +35,7 @@ public class EventControllerTests {
     private ObjectMapper objectMapper;
 
     @Test
+    @SuppressWarnings("null")
     public void testCreateEvent_Success() throws Exception {
         CreateEventRequest request = new CreateEventRequest();
         request.setTitle("Campeonato de Bingo");
@@ -81,6 +82,7 @@ public class EventControllerTests {
     }
 
     @Test
+    @SuppressWarnings("null")
     public void testCreateEvent_ValidationFailed() throws Exception {
         CreateEventRequest request = new CreateEventRequest();
         // Title is blank, which fails @NotBlank validation constraint

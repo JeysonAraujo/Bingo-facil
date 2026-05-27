@@ -56,8 +56,7 @@
                         <template v-for="row in 5" :key="row">
                           <span class="mini-cell">{{ getCell(card, row - 1, 0) }}</span>
                           <span class="mini-cell">{{ getCell(card, row - 1, 1) }}</span>
-                          <span class="mini-cell free" v-if="row === 3 && false">★</span>
-                          <span class="mini-cell">{{ getCell(card, row - 1, 2) }}</span>
+                          <span class="mini-cell" :class="{ free: row === 3 }">{{ getCell(card, row - 1, 2) }}</span>
                           <span class="mini-cell">{{ getCell(card, row - 1, 3) }}</span>
                           <span class="mini-cell">{{ getCell(card, row - 1, 4) }}</span>
                         </template>

@@ -48,7 +48,7 @@ development_status:
   1-3-secure-ticket-grid-generation-and-printable-pdf-batch-export: done
   epic-1-retrospective: optional
   epic-2: in-progress
-  2-1-instant-player-session-activation-via-qr-serial: review
+  2-1-instant-player-session-activation-via-qr-serial: done
   2-2-dual-viewport-responsive-player-layout-and-onboarding-guide: backlog
   epic-2-retrospective: optional
   epic-3: backlog

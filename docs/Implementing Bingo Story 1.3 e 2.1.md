@@ -661,7 +661,11 @@ A Story 1.3 foi concluída com sucesso — compile limpo, testes verdes e todos 
 
 ### User Input
 
+
 Vamos fazer um commit para o repositório https://github.com/JeysonAraujo/bingo-ai.git
+
+Vamos fazer um commit para o repositório https://github.com/JeysonAraujo/bingo-ai.git
+
 
 Com as atualização da Story 1.3
 
