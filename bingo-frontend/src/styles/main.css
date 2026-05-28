@@ -1,0 +1,12 @@
+@import 'vuetify/styles';
+@import 'tailwindcss';
+
+@layer vuetify-overrides, tailwind-utilities;
+
+@layer vuetify-overrides {
+  /* custom vuetify component styling overrides can be placed here */
+}
+
+@layer tailwind-utilities {
+  /* custom tailwind overrides can be placed here */
+}

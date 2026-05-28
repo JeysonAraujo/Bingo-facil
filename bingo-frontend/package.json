@@ -1,0 +1,33 @@
+{
+  "name": "bingo-frontend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vite preview",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build --force"
+  },
+  "dependencies": {
+    "@stomp/stompjs": "^7.0.0",
+    "axios": "^1.16.1",
+    "pinia": "^2.1.7",
+    "roboto-fontface": "*",
+    "vue": "^3.4.21",
+    "vue-router": "^4.3.0",
+    "vuetify": "^3.5.9"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^20.11.28",
+    "@vitejs/plugin-vue": "^5.0.4",
+    "npm-run-all2": "^7.0.0",
+    "sass": "^1.71.1",
+    "tailwindcss": "^4.0.0",
+    "typescript": "~5.4.0",
+    "vite": "^5.1.6",
+    "vue-tsc": "^2.0.6"
+  }
+}

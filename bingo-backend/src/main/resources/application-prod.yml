@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/bingodb}
+    username: ${DATABASE_USER:bingo_user}
+    password: ${DATABASE_PASSWORD:bingo_password}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        show_sql: false
+        format_sql: false
+  flyway:
+    clean-on-validation-error: false
