@@ -8,11 +8,12 @@ export const useAdminStore = defineStore('admin', {
     isLoading: false,
     error: null as string | null,
 
-    // ── WebSocket & Game Console state (Story 3.2) ──────────────────────────
+    // ── WebSocket & Game Console state (Story 3.2 & 3.3) ──────────────────────
     activeConsoleEvent: null as EventResponseDto | null,
     drawnConsoleNumbers: [] as number[],
     latencySeconds: 0,
-    _wsAdminClient: null as any
+    _wsAdminClient: null as any,
+    searchedTicket: null as any // TicketResponseDto for overrides
   }),
 
   actions: {
@@ -94,7 +95,7 @@ export const useAdminStore = defineStore('admin', {
       }
     },
 
-    // ── Console Actions (Story 3.2) ──────────────────────────────────────────
+    // ── Console Actions (Story 3.2 & 3.3) ────────────────────────────────────
 
     /**
      * Fetches details for the active console event.
@@ -128,6 +129,32 @@ export const useAdminStore = defineStore('admin', {
         }
       } catch (err) {
         console.error('[AdminStore] Failed to fetch initial drawn numbers:', err)
+      }
+    },
+
+    /**
+     * Searches a player ticket matrix by serial code.
+     */
+    async searchTicketBySerial(serial: string): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.get<ApiResponse<any>>(`/tickets/search?serial=${serial.toUpperCase()}`)
+        if (response.data.success) {
+          this.searchedTicket = response.data.data
+          return true
+        } else {
+          this.error = response.data.error?.message || 'Cartela não encontrada.'
+          this.searchedTicket = null
+          return false
+        }
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao conectar para busca.'
+        this.searchedTicket = null
+        return false
+      } finally {
+        this.isLoading = false
       }
     },
 
@@ -195,6 +222,53 @@ export const useAdminStore = defineStore('admin', {
         })
       } else {
         console.error('[AdminStore] STOMP Client not connected. Failed to undo last draw.')
+      }
+    },
+
+    /**
+     * Publishes an administrative global text announcement to players.
+     */
+    sendAnnouncement(eventId: string, text: string) {
+      if (this._wsAdminClient && this._wsAdminClient.connected) {
+        this._wsAdminClient.publish({
+          destination: `/app/events/${eventId}/announcement`,
+          body: JSON.stringify({ text: text })
+        })
+      } else {
+        console.error('[AdminStore] STOMP Client not connected. Failed to send announcement.')
+      }
+    },
+
+    /**
+     * Publishes a forced cell marking override command for a target ticket.
+     */
+    sendTicketOverride(ticketId: string, ballNumber: number, action: 'MARK' | 'UNMARK') {
+      if (this._wsAdminClient && this._wsAdminClient.connected) {
+        this._wsAdminClient.publish({
+          destination: `/app/tickets/${ticketId}/override`,
+          body: JSON.stringify({
+            ballNumber: ballNumber,
+            action: action
+          })
+        })
+
+        // Optimistically update local searchedTicket state overrides list
+        if (this.searchedTicket && this.searchedTicket.id === ticketId) {
+          const overrides = [...(this.searchedTicket.markedOverrides || [])]
+          if (action === 'MARK') {
+            if (!overrides.includes(ballNumber)) {
+              overrides.push(ballNumber)
+            }
+          } else {
+            const idx = overrides.indexOf(ballNumber)
+            if (idx !== -1) {
+              overrides.splice(idx, 1)
+            }
+          }
+          this.searchedTicket.markedOverrides = overrides
+        }
+      } else {
+        console.error('[AdminStore] STOMP Client not connected. Failed to send ticket override.')
       }
     }
   }

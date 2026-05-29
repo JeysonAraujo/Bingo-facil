@@ -22,6 +22,18 @@ export interface WsBingoClaimPayload {
   sessionToken: string
 }
 
+/** Payload for announcements */
+export interface WsAnnouncementPayload {
+  text: string
+}
+
+/** Payload for forced ticket overrides */
+export interface WsTicketOverridePayload {
+  ticketId: string
+  ballNumber: number
+  action: 'MARK' | 'UNMARK'
+}
+
 /** Connection status type for reactive UI feedback */
 export type WsConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
@@ -39,10 +51,14 @@ const WS_BASE_URL = 'http://localhost:8080/ws/bingo'
  * IMPORTANT: Import SockJS from 'sockjs-client/dist/sockjs.min.js' (not the default
  * export) to avoid CJS/ESM compatibility issues with Vite's ESM bundler.
  *
- * @param eventId       The UUID of the active bingo event to subscribe to
- * @param sessionToken  The player's session JWT (sent in CONNECT headers for future auth)
- * @param onBallDrawn   Callback invoked when a BALL_DRAWN message arrives
- * @param onStatusChange Callback invoked on connection lifecycle changes
+ * @param eventId         The UUID of the active bingo event to subscribe to
+ * @param sessionToken    The player's session JWT (sent in CONNECT headers for future auth)
+ * @param onBallDrawn     Callback invoked when a BALL_DRAWN message arrives
+ * @param onBallRetracted Callback invoked when a BALL_RETRACTED message arrives
+ * @param onStatusChange  Callback invoked on connection lifecycle changes
+ * @param ticketId        The player's ticket ID (optional, used to subscribe to overrides)
+ * @param onAnnouncement  Callback invoked when a new administrative announcement is broadcasted
+ * @param onTicketOverride Callback invoked when a cell override is forced on this ticket
  * @returns The activated STOMP Client instance (call client.deactivate() to disconnect)
  */
 export function createWebSocketClient(
@@ -50,7 +66,10 @@ export function createWebSocketClient(
   sessionToken: string | null,
   onBallDrawn: (ball: WsBallDrawnPayload) => void,
   onBallRetracted: (ball: WsBallDrawnPayload) => void,
-  onStatusChange: (status: WsConnectionStatus) => void
+  onStatusChange: (status: WsConnectionStatus) => void,
+  ticketId?: string | null,
+  onAnnouncement?: (announcement: WsAnnouncementPayload) => void,
+  onTicketOverride?: (override: WsTicketOverridePayload) => void
 ): Client {
   const client = new Client({
     // SockJS factory: provides HTTP long-polling fallback automatically
@@ -84,6 +103,34 @@ export function createWebSocketClient(
           console.error('[WebSocket] Failed to parse draws message:', e)
         }
       })
+
+      // Subscribe to the event-specific announcements topic if callback is provided
+      if (onAnnouncement) {
+        client.subscribe(`/topic/events/${eventId}/announcements`, (msg: IMessage) => {
+          try {
+            const envelope: WsMessage<WsAnnouncementPayload> = JSON.parse(msg.body)
+            if (envelope.eventType === 'ANNOUNCEMENT' && envelope.payload) {
+              onAnnouncement(envelope.payload)
+            }
+          } catch (e) {
+            console.error('[WebSocket] Failed to parse announcements message:', e)
+          }
+        })
+      }
+
+      // Subscribe to ticket-specific overrides if ticketId and callback are provided
+      if (ticketId && onTicketOverride) {
+        client.subscribe(`/topic/tickets/${ticketId}/overrides`, (msg: IMessage) => {
+          try {
+            const envelope: WsMessage<WsTicketOverridePayload> = JSON.parse(msg.body)
+            if (envelope.eventType === 'TICKET_OVERRIDE' && envelope.payload) {
+              onTicketOverride(envelope.payload)
+            }
+          } catch (e) {
+            console.error('[WebSocket] Failed to parse overrides message:', e)
+          }
+        })
+      }
     },
 
     onDisconnect: () => {

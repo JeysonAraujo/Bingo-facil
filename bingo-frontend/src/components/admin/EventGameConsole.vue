@@ -14,10 +14,10 @@
         </v-btn>
         <h1 class="text-h4 font-weight-bold text-white d-flex align-center">
           <v-icon icon="mdi-gamepad-variant-outline" class="mr-2" color="amber-darken-1"></v-icon>
-          Console de Sorteio Ao Vivo
+          Console de Controle Ao Vivo
         </h1>
         <p class="text-subtitle-2 text-slate-400 mb-0">
-          Gerenciador de rodadas em tempo real • Evento: <span class="text-amber-lighten-2 font-weight-bold">{{ eventTitle }}</span>
+          Painel de Gerenciamento do Evento • Evento: <span class="text-amber-lighten-2 font-weight-bold">{{ eventTitle }}</span>
         </p>
       </div>
 
@@ -34,68 +34,292 @@
 
     <!-- Main Grid Content Row -->
     <v-row>
-      <!-- LEFT COLUMN: Drawing Board Grid (Cols: 8 on desktop, 12 on mobile) -->
+      <!-- LEFT COLUMN: Drawing Board Grid & Administrative Tabs -->
       <v-col cols="12" lg="8" class="d-flex flex-column gap-6">
-        <v-card class="bg-slate-900 border-slate-800 rounded-xl pa-6 shadow-2xl relative">
-          <!-- Pending Draw Alert Banner -->
-          <div v-if="pendingBall !== null" class="pending-alert-banner py-3 px-6 rounded-lg d-flex justify-between align-center mb-4">
-            <div class="d-flex align-center gap-3">
-              <v-icon icon="mdi-alert-circle-outline" color="amber-darken-2" class="animated-shake"></v-icon>
-              <span class="text-subtitle-2 font-weight-bold text-amber-lighten-4">
-                Sorteio Pendente: Bola <span class="text-amber font-weight-black text-h6">{{ pendingBall }}</span>
-              </span>
-            </div>
-            <div class="d-flex gap-2">
-              <v-btn color="grey-darken-3" size="small" class="font-weight-bold" @click="cancelPending">
-                Cancelar (Esc)
-              </v-btn>
-              <v-btn color="amber-darken-2" size="small" class="font-weight-bold text-slate-950" @click="confirmDraw(pendingBall!)">
-                Confirmar (Enter)
-              </v-btn>
-            </div>
-          </div>
+        <v-card class="bg-slate-900 border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+          <!-- Console Navigation Tabs -->
+          <v-tabs
+            v-model="activeTab"
+            bg-color="#0b1329"
+            color="amber-darken-1"
+            grow
+            class="border-bottom-slate"
+          >
+            <v-tab value="draw" class="font-weight-bold text-capitalize text-white">
+              <v-icon start>mdi-grid</v-icon>
+              Painel de Sorteio (BINGO)
+            </v-tab>
+            <v-tab value="announcement" class="font-weight-bold text-capitalize text-white">
+              <v-icon start>mdi-bullhorn-outline</v-icon>
+              Transmissão de Anúncios
+            </v-tab>
+            <v-tab value="override" class="font-weight-bold text-capitalize text-white">
+              <v-icon start>mdi-ticket-percent-outline</v-icon>
+              Overrides de Cartela
+            </v-tab>
+          </v-tabs>
 
-          <!-- Board Columns: B I N G O Header -->
-          <div class="bingo-header-row mb-4">
-            <div v-for="letter in ['B', 'I', 'N', 'G', 'O']" :key="letter" class="bingo-header-cell">
-              {{ letter }}
-            </div>
-          </div>
+          <v-window v-model="activeTab" class="pa-6">
+            <!-- TAB 1: Live Sorteio Grid Board -->
+            <v-window-item value="draw">
+              <!-- Pending Draw Alert Banner -->
+              <div v-if="pendingBall !== null" class="pending-alert-banner py-3 px-6 rounded-lg d-flex justify-between align-center mb-6">
+                <div class="d-flex align-center gap-3">
+                  <v-icon icon="mdi-alert-circle-outline" color="amber-darken-2" class="animated-shake"></v-icon>
+                  <span class="text-subtitle-2 font-weight-bold text-amber-lighten-4">
+                    Sorteio Pendente: Bola <span class="text-amber font-weight-black text-h6">{{ pendingBall }}</span>
+                  </span>
+                </div>
+                <div class="d-flex gap-2">
+                  <v-btn color="grey-darken-3" size="small" class="font-weight-bold" @click="cancelPending">
+                    Cancelar (Esc)
+                  </v-btn>
+                  <v-btn color="amber-darken-2" size="small" class="font-weight-bold text-slate-950" @click="confirmDraw(pendingBall!)">
+                    Confirmar (Enter)
+                  </v-btn>
+                </div>
+              </div>
 
-          <!-- The 75-Key Grid Panel -->
-          <div class="bingo-grid-board">
-            <div
-              v-for="ball in 75"
-              :key="ball"
-              class="ball-key-cell"
-              :class="{
-                'key--drawn': isDrawn(ball),
-                'key--pending': pendingBall === ball,
-                'key--typed-active': typedInput === ball
-              }"
-              @click="handleBallClick(ball)"
-              :title="getBallTitle(ball)"
-            >
-              <span class="key-number">{{ ball }}</span>
-              <span v-if="isDrawn(ball)" class="draw-order">
-                {{ getDrawSequenceText(ball) }}
-              </span>
-            </div>
-          </div>
+              <!-- Board Columns: B I N G O Header -->
+              <div class="bingo-header-row mb-4">
+                <div v-for="letter in ['B', 'I', 'N', 'G', 'O']" :key="letter" class="bingo-header-cell">
+                  {{ letter }}
+                </div>
+              </div>
 
-          <!-- Keyboard Hotkeys Indicator Footer -->
-          <div class="d-flex align-center justify-between mt-6 text-caption text-slate-400 border-t-slate pa-t-4 flex-wrap gap-2">
-            <span class="d-flex align-center gap-1">
-              <v-icon icon="mdi-keyboard-outline" size="small" class="mr-1"></v-icon>
-              Atalhos de Teclado Ativos:
-            </span>
-            <div class="d-flex gap-4 flex-wrap">
-              <span><kbd class="kbd-key">Digite Nº</kbd> Selecionar Bola</span>
-              <span><kbd class="kbd-key">Enter</kbd> Confirmar Sorteio</span>
-              <span><kbd class="kbd-key">Esc</kbd> Cancelar</span>
-              <span><kbd class="kbd-key">Ctrl + Z</kbd> Desfazer</span>
-            </div>
-          </div>
+              <!-- The 75-Key Grid Panel -->
+              <div class="bingo-grid-board">
+                <div
+                  v-for="ball in 75"
+                  :key="ball"
+                  class="ball-key-cell"
+                  :class="{
+                    'key--drawn': isDrawn(ball),
+                    'key--pending': pendingBall === ball,
+                    'key--typed-active': typedInput === ball
+                  }"
+                  @click="handleBallClick(ball)"
+                  :title="getBallTitle(ball)"
+                >
+                  <span class="key-number">{{ ball }}</span>
+                  <span v-if="isDrawn(ball)" class="draw-order">
+                    {{ getDrawSequenceText(ball) }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Keyboard Hotkeys Indicator Footer -->
+              <div class="d-flex align-center justify-between mt-6 text-caption text-slate-400 border-t-slate pt-4 flex-wrap gap-2">
+                <span class="d-flex align-center gap-1">
+                  <v-icon icon="mdi-keyboard-outline" size="small" class="mr-1"></v-icon>
+                  Atalhos de Teclado Ativos:
+                </span>
+                <div class="d-flex gap-4 flex-wrap">
+                  <span><kbd class="kbd-key">Digite Nº</kbd> Selecionar Bola</span>
+                  <span><kbd class="kbd-key">Enter</kbd> Confirmar Sorteio</span>
+                  <span><kbd class="kbd-key">Esc</kbd> Cancelar</span>
+                  <span><kbd class="kbd-key">Ctrl + Z</kbd> Desfazer</span>
+                </div>
+              </div>
+            </v-window-item>
+
+            <!-- TAB 2: Custom Message Broadcaster -->
+            <v-window-item value="announcement">
+              <div class="d-flex flex-column gap-4 py-2">
+                <h3 class="text-subtitle-1 font-weight-bold text-white d-flex align-center">
+                  <v-icon icon="mdi-message-text-outline" color="amber-darken-1" class="mr-2" size="20"></v-icon>
+                  Broadcast de Anúncios da Sala
+                </h3>
+                <p class="text-caption text-slate-400 mb-2">
+                  Envie mensagens personalizadas instantaneamente para todos os jogadores. O texto rolará continuamente em um ticker destacado no topo do Game Room deles.
+                </p>
+
+                <v-textarea
+                  v-model="announcementText"
+                  label="Mensagem de Anúncio"
+                  placeholder="Ex: Rodada Especial de Inauguração! O prêmio de hoje é um Pix de R$ 500! Fiquem atentos!"
+                  variant="outlined"
+                  bg-color="slate-950"
+                  color="amber-darken-1"
+                  rows="3"
+                  class="rounded-lg text-white"
+                  persistent-placeholder
+                  hide-details
+                ></v-textarea>
+
+                <div class="d-flex justify-end gap-2 mt-2">
+                  <v-btn
+                    variant="text"
+                    color="slate-400"
+                    class="font-weight-bold text-capitalize"
+                    @click="announcementText = ''"
+                  >
+                    Limpar
+                  </v-btn>
+                  <v-btn
+                    color="amber-darken-2"
+                    prepend-icon="mdi-send"
+                    class="font-weight-bold text-capitalize text-slate-950 px-6 rounded-lg"
+                    min-height="40px"
+                    :disabled="!announcementText.trim()"
+                    @click="submitAnnouncement"
+                  >
+                    Transmitir Anúncio
+                  </v-btn>
+                </div>
+
+                <!-- Local announcements log -->
+                <div class="mt-6">
+                  <h4 class="text-subtitle-2 font-weight-bold text-slate-200 mb-3">
+                    Histórico de Encomendas Locais
+                  </h4>
+                  <div v-if="localAnnouncements.length === 0" class="text-caption text-slate-500 py-4 text-center border-dashed rounded-lg bg-slate-950 border-slate-800">
+                    Nenhum anúncio enviado nesta sessão.
+                  </div>
+                  <div v-else class="d-flex flex-column gap-2">
+                    <div
+                      v-for="(msg, index) in localAnnouncements"
+                      :key="index"
+                      class="d-flex justify-between align-center bg-slate-950 border-slate-800 pa-3 rounded-lg text-caption"
+                    >
+                      <span class="text-slate-300 font-weight-medium text-wrap">{{ msg.text }}</span>
+                      <span class="text-slate-500 text-xs shrink-0 ml-2">{{ msg.time }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </v-window-item>
+
+            <!-- TAB 3: Force Overrides panel & Ticket Search -->
+            <v-window-item value="override">
+              <div class="d-flex flex-column gap-4 py-2">
+                <h3 class="text-subtitle-1 font-weight-bold text-white d-flex align-center">
+                  <v-icon icon="mdi-magnify" color="amber-darken-1" class="mr-2" size="20"></v-icon>
+                  Pesquisar Cartela para Auditoria e Overrides
+                </h3>
+                <p class="text-caption text-slate-400 mb-2">
+                  Pesquise uma cartela pelo serial de 6 caracteres para visualizar a sua grade 5x5 e forçar a marcação/desmarcação manual de células.
+                </p>
+
+                <!-- Search bar input -->
+                <div class="d-flex gap-3 align-center mb-4">
+                  <v-text-field
+                    v-model="searchSerial"
+                    label="Código de Serial da Cartela"
+                    placeholder="Ex: AB24EF"
+                    variant="outlined"
+                    bg-color="slate-950"
+                    color="amber-darken-1"
+                    class="rounded-lg text-white"
+                    hide-details
+                    maxlength="6"
+                    @keyup.enter="performTicketSearch"
+                  ></v-text-field>
+                  <v-btn
+                    color="indigo-darken-3"
+                    size="large"
+                    prepend-icon="mdi-magnify"
+                    class="rounded-lg text-white font-weight-bold px-6"
+                    min-height="56px"
+                    :loading="adminStore.isLoading"
+                    :disabled="searchSerial.trim().length !== 6"
+                    @click="performTicketSearch"
+                  >
+                    Pesquisar
+                  </v-btn>
+                </div>
+
+                <!-- Error Alert in search -->
+                <v-alert
+                  v-if="searchError"
+                  type="warning"
+                  variant="tonal"
+                  density="compact"
+                  closable
+                  class="rounded-lg mb-2 text-caption"
+                  @click:close="searchError = ''"
+                >
+                  {{ searchError }}
+                </v-alert>
+
+                <!-- Search Result Detail view -->
+                <div v-if="adminStore.searchedTicket" class="searched-ticket-card pa-6 rounded-xl bg-slate-950 border-slate-800 mt-2">
+                  <div class="d-flex justify-between align-center mb-6 flex-wrap gap-2 border-bottom-slate pb-4">
+                    <div>
+                      <div class="text-caption text-slate-400">Cartela Serial</div>
+                      <div class="text-h6 font-weight-black text-amber-lighten-2">
+                        {{ adminStore.searchedTicket.serial }}
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-caption text-slate-400">Status de Ativação</div>
+                      <v-chip
+                        :color="adminStore.searchedTicket.activated ? 'success' : 'grey-darken-2'"
+                        size="small"
+                        variant="flat"
+                        class="font-weight-black mt-1"
+                      >
+                        {{ adminStore.searchedTicket.activated ? 'Ativa / Jogando' : 'Inativa / Não Ativada' }}
+                      </v-chip>
+                    </div>
+                  </div>
+
+                  <!-- Grid 5x5 Card Viewer -->
+                  <div class="override-grid-outer d-flex justify-center my-4">
+                    <div class="override-bingo-card">
+                      <!-- Grid Headers -->
+                      <div class="override-card-header">
+                        <span v-for="letter in ['B', 'I', 'N', 'G', 'O']" :key="letter">{{ letter }}</span>
+                      </div>
+                      
+                      <!-- 5x5 cells -->
+                      <div class="override-card-grid">
+                        <div
+                          v-for="cell in ticketCells"
+                          :key="`${cell.letter}-${cell.value}`"
+                          class="override-cell"
+                          :class="{
+                            'cell--free': cell.value === 0,
+                            'cell--drawn': isDrawn(cell.value) && cell.value !== 0,
+                            'cell--overridden': isOverridden(cell.value) && cell.value !== 0
+                          }"
+                          @click="toggleCellOverride(cell.value)"
+                          :title="getCellTitle(cell.value)"
+                        >
+                          <span v-if="cell.value === 0" class="free-text-star">
+                            <v-icon size="x-small">mdi-star</v-icon>
+                          </span>
+                          <span v-else class="cell-num">{{ cell.value }}</span>
+
+                          <!-- Override indicator lock icon -->
+                          <v-icon
+                            v-if="isOverridden(cell.value) && cell.value !== 0"
+                            size="x-small"
+                            class="cell-override-lock-icon"
+                          >
+                            mdi-lock
+                          </v-icon>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Bottom indicators -->
+                  <div class="d-flex align-center justify-between mt-6 text-caption text-slate-500 border-t-slate pt-4">
+                    <span class="d-flex align-center gap-1">
+                      <span class="color-dot bg-green"></span> Marcação Padrão (Sorteada no Round)
+                    </span>
+                    <span class="d-flex align-center gap-1">
+                      <span class="color-dot bg-purple"></span> Override Manual (Forçado pelo Coordenador)
+                    </span>
+                  </div>
+                  <p class="text-caption text-slate-400 mt-4 mb-0 text-center font-weight-medium bg-slate-900 border-slate pa-3 rounded-lg">
+                    💡 Dica: Dê um clique em qualquer célula para forçar a marcação (Glow Roxo) ou limpar o override. O jogador receberá a mudança reativa instantaneamente no Cartelão dele!
+                  </p>
+                </div>
+              </div>
+            </v-window-item>
+          </v-window>
         </v-card>
       </v-col>
 
@@ -198,11 +422,24 @@ const adminStore = useAdminStore()
 const eventId = route.params.eventId as string
 
 // Active console state
+const activeTab = ref('draw')
 const pendingBall = ref<number | null>(null)
 const typedInput = ref<number | null>(null)
 let doubleClickTimer: number | null = null
 let keyClearTimer: number | null = null
 let typedAccumulator = ''
+
+// Announcements tab state
+const announcementText = ref('')
+interface LocalAnnouncement {
+  text: string
+  time: string
+}
+const localAnnouncements = ref<LocalAnnouncement[]>([])
+
+// Overrides tab state
+const searchSerial = ref('')
+const searchError = ref('')
 
 // Computed properties
 const eventTitle = computed(() => adminStore.activeConsoleEvent?.title || 'Carregando…')
@@ -218,6 +455,32 @@ const lastDrawnBall = computed(() => {
   if (len === 0) return ''
   const ball = adminStore.drawnConsoleNumbers[len - 1]
   return `${getLetterForBall(ball)}-${ball}`
+})
+
+// Maps a 5x5 card layout for the searched active ticket
+interface Cell {
+  letter: string
+  value: number
+}
+const ticketCells = computed<Cell[]>(() => {
+  const ticket = adminStore.searchedTicket
+  if (!ticket || !ticket.matrix || !ticket.matrix.cards || ticket.matrix.cards.length === 0) {
+    return []
+  }
+
+  const card = ticket.matrix.cards[0]
+  const cells: Cell[] = []
+  
+  // Format cells by grid rows (index 0 to 4)
+  for (let row = 0; row < 5; row++) {
+    cells.push({ letter: 'B', value: card.b[row] })
+    cells.push({ letter: 'I', value: card.i[row] })
+    cells.push({ letter: 'N', value: row === 2 ? 0 : card.n[row] }) // Middle element row 2 column 2 is 0 (FREE space)
+    cells.push({ letter: 'G', value: card.g[row] })
+    cells.push({ letter: 'O', value: card.o[row] })
+  }
+
+  return cells
 })
 
 // Mounted lifecycle
@@ -253,6 +516,11 @@ const isDrawn = (ball: number) => {
   return adminStore.drawnConsoleNumbers.includes(ball)
 }
 
+const isOverridden = (ball: number) => {
+  const ticket = adminStore.searchedTicket
+  return ticket && ticket.markedOverrides && ticket.markedOverrides.includes(ball)
+}
+
 const getDrawSequenceText = (ball: number) => {
   const idx = adminStore.drawnConsoleNumbers.indexOf(ball)
   return idx !== -1 ? `${idx + 1}º` : ''
@@ -262,6 +530,13 @@ const getBallTitle = (ball: number) => {
   if (isDrawn(ball)) return `Bola ${ball} já sorteada`
   if (pendingBall.value === ball) return 'Dê duplo-clique para confirmar o sorteio!'
   return `Clique uma vez para pré-selecionar a bola ${ball}`
+}
+
+const getCellTitle = (ball: number) => {
+  if (ball === 0) return 'FREE SPACE'
+  if (isDrawn(ball)) return `Bola ${ball} (Sorteada no Round)`
+  if (isOverridden(ball)) return `Bola ${ball} (Marcada via Override Manual) • Clique para remover override`
+  return `Bola ${ball} (Não marcada) • Clique para forçar marcação manual`
 }
 
 const getLetterForBall = (ball: number): string => {
@@ -329,15 +604,53 @@ const triggerUndo = () => {
   }
 }
 
+// Announcements triggers
+const submitAnnouncement = () => {
+  const text = announcementText.value.trim()
+  if (!text) return
+
+  adminStore.sendAnnouncement(eventId, text)
+
+  // Log locally
+  const now = new Date()
+  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+  localAnnouncements.value.unshift({ text, time: timeStr })
+
+  // Clear
+  announcementText.value = ''
+}
+
+// Ticket Search triggers
+const performTicketSearch = async () => {
+  searchError.value = ''
+  const serial = searchSerial.value.trim()
+  if (serial.length !== 6) return
+
+  const success = await adminStore.searchTicketBySerial(serial)
+  if (!success) {
+    searchError.value = adminStore.error || 'Cartela não encontrada.'
+  }
+}
+
+// Cell Override triggers
+const toggleCellOverride = (ball: number) => {
+  if (ball === 0 || !adminStore.searchedTicket) return
+
+  const ticketId = adminStore.searchedTicket.id
+  const action = isOverridden(ball) ? 'UNMARK' : 'MARK'
+
+  adminStore.sendTicketOverride(ticketId, ball, action)
+}
+
 /**
- * Administrative Global keyboard hotkeys:
+ * Administrative Global keyboard hotkeys (active ONLY on BINGO Draw Board tab):
  * - Typing 1-75 selects it as pending selection.
  * - Pressing 'Enter' confirms pending ball.
  * - Pressing 'Esc' cancels pending/typed state.
  * - Pressing 'Ctrl+Z' triggers the UNDO operation.
  */
 const handleGlobalKeydown = (event: KeyboardEvent) => {
-  // If focused on an input element (like sliders or system inputs), bypass hotkeys
+  // Lock hotkeys if focused on textarea or text fields (e.g. search / announcemet text fields)
   const activeEl = document.activeElement
   if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
     return
@@ -356,6 +669,9 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
     cancelPending()
     return
   }
+
+  // Only active numeric keyboard sorting inside Bingo Sorteio tab
+  if (activeTab.value !== 'draw') return
 
   // Enter: Confirm pending
   if (event.key === 'Enter') {
@@ -423,12 +739,20 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
 }
 
+.border-bottom-slate {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
 .text-slate-400 {
   color: #94a3b8;
 }
 
 .text-slate-300 {
   color: #cbd5e1;
+}
+
+.text-slate-200 {
+  color: #e2e8f0;
 }
 
 .text-slate-500 {
@@ -594,8 +918,8 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.pa-t-4 {
-  padding-top: 16px;
+.border-slate {
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* RED UNDO BUTTON */
@@ -646,7 +970,7 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
 
 /* History Scroll Area */
 .h-console-history {
-  height: 380px;
+  height: 480px;
 }
 
 .history-scroll-area {
@@ -684,4 +1008,104 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
   color: #10b981;
   font-weight: bold;
 }
+
+/* 5x5 Override Card Grid layout */
+.searched-ticket-card {
+  background-color: #080f20;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.override-bingo-card {
+  width: 280px;
+  background: #0f172a;
+  border: 3px solid #1e293b;
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+.override-card-header {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  text-align: center;
+  font-weight: 900;
+  font-size: 1.25rem;
+  color: #ffab00;
+  margin-bottom: 8px;
+  user-select: none;
+}
+
+.override-card-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.override-cell {
+  aspect-ratio: 1;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #f1f5f9;
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+  transition: all 0.2s ease-in-out;
+}
+
+.override-cell:hover:not(.cell--free) {
+  transform: scale(1.08);
+  box-shadow: 0 0 8px rgba(255, 171, 0, 0.3);
+  background-color: #334155;
+  z-index: 5;
+}
+
+.cell--free {
+  background: #ffab00 !important;
+  color: #0b132b !important;
+  cursor: not-allowed;
+}
+
+.cell--drawn {
+  background: rgba(46, 125, 50, 0.15) !important;
+  border: 2px solid #2e7d32 !important;
+  color: #4caf50 !important;
+}
+
+.cell--overridden {
+  background: rgba(147, 51, 234, 0.15) !important;
+  border: 2px solid #a855f7 !important;
+  color: #c084fc !important;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.25);
+  animation: override-glow-pulse 2s infinite alternate;
+}
+
+@keyframes override-glow-pulse {
+  0% { box-shadow: 0 0 6px rgba(168, 85, 247, 0.2); }
+  100% { box-shadow: 0 0 12px rgba(168, 85, 247, 0.4); }
+}
+
+.cell-override-lock-icon {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  color: #c084fc;
+}
+
+.color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.bg-green { background-color: #2e7d32; }
+.bg-purple { background-color: #a855f7; }
 </style>

@@ -5,12 +5,19 @@ import api, {
   type TicketActivationResponseDto,
   type TicketMatrixDto
 } from '../services/api'
-import { createWebSocketClient, type WsConnectionStatus, type WsBallDrawnPayload } from '../services/websocket'
+import {
+  createWebSocketClient,
+  type WsConnectionStatus,
+  type WsBallDrawnPayload,
+  type WsAnnouncementPayload,
+  type WsTicketOverridePayload
+} from '../services/websocket'
 
 const SESSION_TOKEN_KEY = 'bingo_session_token'
 const TICKET_MATRIX_KEY = 'bingo_ticket_matrix'
 const TICKET_SERIAL_KEY = 'bingo_ticket_serial'
 const EVENT_ID_KEY = 'bingo_event_id'
+const TICKET_ID_KEY = 'bingo_ticket_id'
 
 export const useGameStore = defineStore('game', {
   state: () => ({
@@ -26,6 +33,7 @@ export const useGameStore = defineStore('game', {
     })() as TicketMatrixDto | null,
     serial: localStorage.getItem(TICKET_SERIAL_KEY) as string | null,
     eventId: localStorage.getItem(EVENT_ID_KEY) as string | null,
+    ticketId: localStorage.getItem(TICKET_ID_KEY) as string | null,
     isLoading: false,
     error: null as string | null,
 
@@ -37,7 +45,13 @@ export const useGameStore = defineStore('game', {
     /** Admin-configured stream latency in seconds (0–30); used by latency engine in Story 4.1 */
     latencySeconds: 0,
     /** Internal STOMP client reference — not exposed in template bindings */
-    _wsClient: null as Client | null
+    _wsClient: null as Client | null,
+
+    // ── Overrides & Announcements state (Story 3.3) ──────────────────────────
+    /** Forced overrides marked by coordinate admins */
+    overriddenNumbers: [] as number[],
+    /** Currently active global text announcement */
+    activeAnnouncement: null as string | null
   }),
 
   getters: {
@@ -63,12 +77,14 @@ export const useGameStore = defineStore('game', {
           this.ticketMatrix = data.matrix
           this.serial = data.serial
           this.eventId = data.eventId
+          this.ticketId = data.ticketId
 
           // Persist to localStorage for session recovery on page refresh
           localStorage.setItem(SESSION_TOKEN_KEY, data.sessionToken)
           localStorage.setItem(TICKET_MATRIX_KEY, JSON.stringify(data.matrix))
           localStorage.setItem(TICKET_SERIAL_KEY, data.serial)
           localStorage.setItem(EVENT_ID_KEY, data.eventId)
+          localStorage.setItem(TICKET_ID_KEY, data.ticketId)
           return true
         } else {
           this.error = response.data.error?.message || 'Falha ao ativar cartela.'
@@ -90,10 +106,14 @@ export const useGameStore = defineStore('game', {
       this.ticketMatrix = null
       this.serial = null
       this.eventId = null
+      this.ticketId = null
+      this.overriddenNumbers = []
+      this.activeAnnouncement = null
       localStorage.removeItem(SESSION_TOKEN_KEY)
       localStorage.removeItem(TICKET_MATRIX_KEY)
       localStorage.removeItem(TICKET_SERIAL_KEY)
       localStorage.removeItem(EVENT_ID_KEY)
+      localStorage.removeItem(TICKET_ID_KEY)
     },
 
     // ── WebSocket actions (Story 3.1) ────────────────────────────────────
@@ -138,8 +158,45 @@ export const useGameStore = defineStore('game', {
         this.sessionToken,
         (ball: WsBallDrawnPayload) => this.addDrawnNumber(ball.ballNumber),
         (ball: WsBallDrawnPayload) => this.retractDrawnNumber(ball.ballNumber),
-        (status: WsConnectionStatus) => this.setConnectionStatus(status)
+        (status: WsConnectionStatus) => this.setConnectionStatus(status),
+        this.ticketId,
+        (announcement: WsAnnouncementPayload) => {
+          this.activeAnnouncement = announcement.text
+        },
+        (override: WsTicketOverridePayload) => {
+          this.applyTicketOverride(override.ballNumber, override.action)
+        }
       )
+    },
+
+    /**
+     * Fetches current ticket overrides from the server to sync on page reload/refresh.
+     */
+    async fetchTicketOverrides(serial: string): Promise<void> {
+      try {
+        const response = await api.get<ApiResponse<any>>(`/tickets/search?serial=${serial.toUpperCase()}`)
+        if (response.data.success && response.data.data) {
+          this.overriddenNumbers = response.data.data.markedOverrides || []
+        }
+      } catch (err) {
+        console.error('[Store] Failed to fetch ticket overrides:', err)
+      }
+    },
+
+    /**
+     * Appends or removes a forced ticket override.
+     */
+    applyTicketOverride(ballNumber: number, action: 'MARK' | 'UNMARK'): void {
+      if (action === 'MARK') {
+        if (!this.overriddenNumbers.includes(ballNumber)) {
+          this.overriddenNumbers.push(ballNumber)
+        }
+      } else {
+        const index = this.overriddenNumbers.indexOf(ballNumber)
+        if (index !== -1) {
+          this.overriddenNumbers.splice(index, 1)
+        }
+      }
     },
 
     /**

@@ -1,8 +1,11 @@
 package com.bingoai.backend.game;
 
+import com.bingoai.backend.game.dto.AnnouncementMessage;
 import com.bingoai.backend.game.dto.BingoClaimMessage;
 import com.bingoai.backend.game.dto.DrawBallCommand;
 import com.bingoai.backend.game.dto.DrawBallMessage;
+import com.bingoai.backend.game.dto.TicketOverrideCommand;
+import com.bingoai.backend.game.dto.TicketOverrideMessage;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -32,10 +35,14 @@ public class GameWebSocketController {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final GameService gameService;
+    private final AdminOverrideService adminOverrideService;
 
-    public GameWebSocketController(SimpMessagingTemplate messagingTemplate, GameService gameService) {
+    public GameWebSocketController(SimpMessagingTemplate messagingTemplate,
+                                   GameService gameService,
+                                   AdminOverrideService adminOverrideService) {
         this.messagingTemplate = messagingTemplate;
         this.gameService = gameService;
+        this.adminOverrideService = adminOverrideService;
     }
 
     /**
@@ -90,6 +97,69 @@ public class GameWebSocketController {
         } catch (Exception e) {
             // Fail silently or broadcast error if needed (keep robust for production)
             System.err.println("[WebSocket] Failed to retract last draw: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Receives an announcement request from the Admin, enriches it inside the official
+     * envelope, and broadcasts it over WebSockets to all players in the room.
+     *
+     * <p>Admin sends to:   {@code /app/events/{eventId}/announcement}
+     * <p>Players receive at: {@code /topic/events/{eventId}/announcements}
+     *
+     * @param eventId      the UUID of the active event
+     * @param announcement the payload containing the announcement text
+     */
+    @MessageMapping("/events/{eventId}/announcement")
+    public void broadcastAnnouncement(
+            @DestinationVariable String eventId,
+            @Payload AnnouncementMessage.Payload announcement) {
+
+        AnnouncementMessage broadcast = new AnnouncementMessage(announcement.getText());
+
+        messagingTemplate.convertAndSend(
+                "/topic/events/" + eventId + "/announcements",
+                broadcast
+        );
+    }
+
+    /**
+     * Receives a forced ticket cell override request from the Admin, persists the
+     * override in the database, and dispatches a targeted WebSocket update solely
+     * to that specific player's overrides channel.
+     *
+     * <p>Admin sends to:   {@code /app/tickets/{ticketId}/override}
+     * <p>Player receives at: {@code /topic/tickets/{ticketId}/overrides}
+     *
+     * @param ticketId the UUID of the player ticket being overridden
+     * @param command  the payload containing the ball number and action (MARK/UNMARK)
+     */
+    @MessageMapping("/tickets/{ticketId}/override")
+    public void applyTicketOverride(
+            @DestinationVariable String ticketId,
+            @Payload @Valid TicketOverrideCommand command) {
+
+        try {
+            // 1. Persist the forced override in the database
+            adminOverrideService.applyOverride(
+                    UUID.fromString(ticketId),
+                    command.getBallNumber(),
+                    command.getAction()
+            );
+
+            // 2. Dispatch targeted real-time message to that specific player client only
+            TicketOverrideMessage message = new TicketOverrideMessage(
+                    UUID.fromString(ticketId),
+                    command.getBallNumber(),
+                    command.getAction()
+            );
+
+            messagingTemplate.convertAndSend(
+                    "/topic/tickets/" + ticketId + "/overrides",
+                    message
+            );
+        } catch (Exception e) {
+            System.err.println("[WebSocket] Failed to process ticket override: " + e.getMessage());
         }
     }
 

@@ -38,6 +38,25 @@
     </v-app-bar>
 
     <v-main class="game-bg">
+      <!-- Announcement Ticker -->
+      <div v-if="gameStore.activeAnnouncement" class="announcement-ticker-bar">
+        <div class="ticker-content">
+          <v-icon color="amber-lighten-1" size="small" class="ticker-icon mr-2">mdi-bullhorn-outline</v-icon>
+          <div class="marquee-wrapper">
+            <span class="marquee-text">{{ gameStore.activeAnnouncement }}</span>
+          </div>
+          <v-btn
+            icon="mdi-close"
+            size="x-small"
+            variant="text"
+            color="grey-lighten-1"
+            class="ml-2 close-ticker-btn"
+            @click="clearTicker"
+            aria-label="Fechar anúncio"
+          />
+        </div>
+      </div>
+
       <v-container fluid class="pa-4 pa-sm-6 max-w-7xl mx-auto">
         <!-- Main Layout Grid -->
         <v-row class="game-layout-row">
@@ -284,7 +303,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch, type Ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '../../stores/game'
 import BingoCard from './BingoCard.vue'
@@ -304,8 +323,18 @@ const showClaimDialog = ref(false)
 
 const chatContainer: Ref<HTMLElement | null> = ref(null)
 
-// Marked numbers (initially empty, can be simulated or loaded in future stories)
-const markedNumbers = ref(new Set<number>())
+// Marked numbers computed from both drawn numbers and forced coordinator overrides
+const markedNumbers = computed(() => {
+  const union = new Set<number>()
+  gameStore.drawnNumbers.forEach((n) => union.add(n))
+  gameStore.overriddenNumbers.forEach((n) => union.add(n))
+  return union
+})
+
+// Clears the active announcement ticker
+function clearTicker() {
+  gameStore.activeAnnouncement = null
+}
 
 // Onboarding completion key
 const ONBOARDING_COMPLETED_KEY = 'bingo_onboarding_completed'
@@ -356,6 +385,11 @@ onMounted(async () => {
   
   // 1. Recover chronological history from database
   await gameStore.fetchInitialDraws(activeEventId)
+
+  // 1.5. Recover current ticket overrides from database if serial is present
+  if (gameStore.serial) {
+    await gameStore.fetchTicketOverrides(gameStore.serial)
+  }
   
   // 2. Open WebSocket channel for real-time updates
   gameStore.connectToGame(activeEventId)
@@ -1000,6 +1034,78 @@ watch(activeTab, (newTab) => {
 @media (min-width: 960px) {
   .game-layout-row {
     flex-wrap: nowrap;
+  }
+}
+
+/* Announcement Ticker Premium Styles */
+.announcement-ticker-bar {
+  background: linear-gradient(90deg, #1e1b4b 0%, #311042 100%);
+  border-bottom: 2px solid #ffd600;
+  color: #ffffff;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+  position: relative;
+}
+
+.ticker-content {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0 16px;
+  justify-content: space-between;
+}
+
+.ticker-icon {
+  flex-shrink: 0;
+  animation: pulse-icon 1.5s infinite;
+}
+
+@keyframes pulse-icon {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+.marquee-wrapper {
+  flex-grow: 1;
+  overflow: hidden;
+  position: relative;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  margin: 0 12px;
+}
+
+.marquee-text {
+  display: inline-block;
+  padding-left: 100%;
+  animation: marquee 20s linear infinite;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  color: #fef08a; /* AAA contrast gold-yellow */
+}
+
+.close-ticker-btn {
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.close-ticker-btn:hover {
+  transform: scale(1.1);
+  color: #ffffff !important;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-100%, 0, 0);
   }
 }
 </style>

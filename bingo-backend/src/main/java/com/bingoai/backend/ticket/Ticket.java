@@ -2,6 +2,8 @@ package com.bingoai.backend.ticket;
 
 import com.bingoai.backend.event.Event;
 import jakarta.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -29,6 +31,10 @@ public class Ticket {
     @Column(name = "session_token")
     private String sessionToken;
 
+    @Column(name = "marked_overrides", columnDefinition = "jsonb", nullable = false)
+    @Convert(converter = TicketOverridesConverter.class)
+    private List<Integer> markedOverrides = new ArrayList<>();
+
     public Ticket() {}
 
     // Getters and Setters
@@ -49,4 +55,7 @@ public class Ticket {
 
     public String getSessionToken() { return sessionToken; }
     public void setSessionToken(String sessionToken) { this.sessionToken = sessionToken; }
+
+    public List<Integer> getMarkedOverrides() { return markedOverrides; }
+    public void setMarkedOverrides(List<Integer> markedOverrides) { this.markedOverrides = markedOverrides; }
 }
