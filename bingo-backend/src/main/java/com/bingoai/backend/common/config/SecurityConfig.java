@@ -21,6 +21,9 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
+                // SockJS fallback uses HTTP under /ws/bingo/info, /ws/bingo/{server}/{session}/xhr, etc.
+                // All WebSocket handshake and polling paths must be explicitly permitted.
+                .requestMatchers("/ws/bingo/**", "/ws/**").permitAll()
                 .anyRequest().permitAll()
             );
         return http.build();
@@ -39,3 +42,4 @@ public class SecurityConfig {
         return source;
     }
 }
+

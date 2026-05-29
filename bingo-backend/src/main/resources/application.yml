@@ -3,6 +3,9 @@ spring:
     name: bingo-backend
   profiles:
     active: dev
+  threads:
+    virtual:
+      enabled: true
   datasource:
     url: jdbc:postgresql://localhost:5432/bingodb
     username: bingo_user
@@ -26,3 +29,4 @@ server:
 
 app:
   activation-base-url: http://localhost:3000
+

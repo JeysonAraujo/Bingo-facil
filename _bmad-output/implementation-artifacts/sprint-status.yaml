@@ -1,5 +1,5 @@
 # generated: 2026-05-25T14:18:00Z
-# last_updated: 2026-05-26T18:07:00Z
+# last_updated: 2026-05-28T20:15:00Z
 # project: bingo-ai
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-05-25T14:18:00Z
-last_updated: 2026-05-26T18:07:00Z
+last_updated: 2026-05-28T20:15:00Z
 project: bingo-ai
 project_key: NOKEY
 tracking_system: file-system
@@ -51,8 +51,8 @@ development_status:
   2-1-instant-player-session-activation-via-qr-serial: done
   2-2-dual-viewport-responsive-player-layout-and-onboarding-guide: done
   epic-2-retrospective: optional
-  epic-3: backlog
-  3-1-high-concurrency-stomp-websocket-messaging-channel: backlog
+  epic-3: in-progress
+  3-1-high-concurrency-stomp-websocket-messaging-channel: review
   3-2-error-proof-75-key-admin-draw-board-and-undo-safeguard: backlog
   3-3-administrative-custom-message-broadcasts-and-overrides: backlog
   epic-3-retrospective: optional

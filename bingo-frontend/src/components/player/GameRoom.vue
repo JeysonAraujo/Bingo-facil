@@ -12,6 +12,8 @@
         </div>
 
         <div class="d-flex align-center gap-2">
+          <!-- WebSocket connection status badge -->
+          <ConnectionStatusBadge class="d-none d-sm-inline-flex" />
           <v-btn
             variant="tonal"
             color="amber-lighten-1"
@@ -287,6 +289,7 @@ import { useRouter } from 'vue-router'
 import { useGameStore } from '../../stores/game'
 import BingoCard from './BingoCard.vue'
 import OnboardingTour from './OnboardingTour.vue'
+import ConnectionStatusBadge from '../shared/ConnectionStatusBadge.vue'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -347,6 +350,13 @@ onMounted(() => {
     showTour.value = true
   }
 
+  // Connect to WebSocket for the active event.
+  // Event ID is currently hardcoded as a placeholder until the player session
+  // carries the active eventId (wired in Story 3.2 when the admin draw board is live).
+  // Using a sentinel value that gracefully degrades if no real event is active.
+  const activeEventId = 'placeholder-event-id'
+  gameStore.connectToGame(activeEventId)
+
   // Start simulated chat messages
   chatInterval = window.setInterval(() => {
     const randomIndex = Math.floor(Math.random() * randomChats.length)
@@ -376,6 +386,8 @@ onUnmounted(() => {
   if (chatInterval) {
     clearInterval(chatInterval)
   }
+  // Cleanly disconnect WebSocket when the player leaves the room
+  gameStore.disconnectFromGame()
 })
 
 function handleLogout() {
