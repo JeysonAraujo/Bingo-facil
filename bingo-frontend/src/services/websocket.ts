@@ -49,6 +49,7 @@ export function createWebSocketClient(
   eventId: string,
   sessionToken: string | null,
   onBallDrawn: (ball: WsBallDrawnPayload) => void,
+  onBallRetracted: (ball: WsBallDrawnPayload) => void,
   onStatusChange: (status: WsConnectionStatus) => void
 ): Client {
   const client = new Client({
@@ -62,6 +63,11 @@ export function createWebSocketClient(
     // Reconnect automatically after 5 seconds on unexpected disconnects
     reconnectDelay: 5000,
 
+    // Set connecting status before initiating connection/reconnection
+    beforeConnect: () => {
+      onStatusChange('connecting')
+    },
+
     onConnect: () => {
       onStatusChange('connected')
 
@@ -71,9 +77,11 @@ export function createWebSocketClient(
           const envelope: WsMessage<WsBallDrawnPayload> = JSON.parse(msg.body)
           if (envelope.eventType === 'BALL_DRAWN' && envelope.payload) {
             onBallDrawn(envelope.payload)
+          } else if (envelope.eventType === 'BALL_RETRACTED' && envelope.payload) {
+            onBallRetracted(envelope.payload)
           }
         } catch (e) {
-          console.error('[WebSocket] Failed to parse BALL_DRAWN message:', e)
+          console.error('[WebSocket] Failed to parse draws message:', e)
         }
       })
     },

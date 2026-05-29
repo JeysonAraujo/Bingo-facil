@@ -1,5 +1,6 @@
 package com.bingoai.backend.common.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -25,6 +26,9 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    @Value("${app.activation-base-url:http://localhost:3000}")
+    private String allowedOrigin;
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
         // Enable simple in-memory broker to route messages to /topic destinations
@@ -37,7 +41,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Primary WebSocket endpoint with SockJS fallback for broad client compatibility
         registry.addEndpoint("/ws/bingo")
-                .setAllowedOrigins("http://localhost:3000")
+                .setAllowedOrigins(allowedOrigin)
                 .withSockJS();
     }
 }

@@ -69,6 +69,7 @@ export interface TicketMatrixDto {
 
 export interface TicketActivationResponseDto {
   ticketId: string
+  eventId: string
   sessionToken: string
   serial: string
   matrix: TicketMatrixDto

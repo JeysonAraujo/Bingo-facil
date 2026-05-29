@@ -128,16 +128,15 @@
           <!-- Card Footer Actions -->
           <v-card-actions class="pa-4 bg-grey-lighten-5 d-flex flex-column align-stretch">
             <v-btn
-              color="grey"
-              variant="elevated"
+              color="indigo-darken-3"
+              variant="flat"
               block
-              append-icon="mdi-clock-outline"
-              class="font-weight-bold rounded-lg py-2 mb-2"
+              append-icon="mdi-arrow-right"
+              class="font-weight-bold rounded-lg py-2 mb-2 text-white"
               min-height="40px"
-              disabled
-              title="Recurso em desenvolvimento"
+              :to="`/admin/events/${event.id}/console`"
             >
-              Gerenciar Evento (Em breve)
+              Gerenciar Evento
             </v-btn>
             <div class="d-flex justify-space-between w-100">
               <v-btn

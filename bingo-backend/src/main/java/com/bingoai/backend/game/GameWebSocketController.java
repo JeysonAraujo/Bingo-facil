@@ -1,7 +1,10 @@
 package com.bingoai.backend.game;
 
 import com.bingoai.backend.game.dto.BingoClaimMessage;
+import com.bingoai.backend.game.dto.DrawBallCommand;
 import com.bingoai.backend.game.dto.DrawBallMessage;
+import jakarta.validation.Valid;
+import java.util.UUID;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -28,36 +31,66 @@ import org.springframework.stereotype.Controller;
 public class GameWebSocketController {
 
     private final SimpMessagingTemplate messagingTemplate;
+    private final GameService gameService;
 
-    public GameWebSocketController(SimpMessagingTemplate messagingTemplate) {
+    public GameWebSocketController(SimpMessagingTemplate messagingTemplate, GameService gameService) {
         this.messagingTemplate = messagingTemplate;
+        this.gameService = gameService;
     }
 
     /**
-     * Receives a draw command from the Admin panel and broadcasts the drawn ball
-     * to all players subscribed to the event's draw topic.
+     * Receives a draw command from the Admin panel, persists it in the database,
+     * and broadcasts the drawn ball to all players subscribed to the event's draw topic.
      *
      * <p>Admin sends to: {@code /app/events/{eventId}/draw}
      * <p>Players receive at: {@code /topic/events/{eventId}/draws}
      *
      * @param eventId the UUID of the active event
-     * @param message the draw request containing ballNumber and drawnSequence
+     * @param command the draw command containing ballNumber and drawnSequence
      */
     @MessageMapping("/events/{eventId}/draw")
     public void drawBall(
             @DestinationVariable String eventId,
-            @Payload DrawBallMessage message) {
+            @Payload @Valid DrawBallCommand command) {
 
-        // Enrich timestamp on the server side for consistency across clients
-        DrawBallMessage broadcast = new DrawBallMessage(
-                message.getPayload().getBallNumber(),
-                message.getPayload().getDrawnSequence()
+        // Persist the drawn ball in the database for state recovery
+        DrawBallMessage broadcast = gameService.recordDraw(
+                UUID.fromString(eventId),
+                command.getBallNumber(),
+                command.getDrawnSequence()
         );
 
         messagingTemplate.convertAndSend(
                 "/topic/events/" + eventId + "/draws",
                 broadcast
         );
+    }
+
+    /**
+     * Receives an undo command from the Admin panel, deletes the last drawn ball from
+     * the database, and broadcasts a BALL_RETRACTED event to all connected players.
+     *
+     * <p>Admin sends to: {@code /app/events/{eventId}/undo}
+     * <p>Players receive at: {@code /topic/events/{eventId}/draws}
+     *
+     * @param eventId the UUID of the active event
+     */
+    @MessageMapping("/events/{eventId}/undo")
+    public void undoLastDraw(@DestinationVariable String eventId) {
+        try {
+            // Delete last draw and fetch its metadata
+            DrawBallMessage retracted = gameService.retractLastDraw(UUID.fromString(eventId));
+            // Override eventType to signal a retraction
+            retracted.setEventType("BALL_RETRACTED");
+
+            messagingTemplate.convertAndSend(
+                    "/topic/events/" + eventId + "/draws",
+                    retracted
+            );
+        } catch (Exception e) {
+            // Fail silently or broadcast error if needed (keep robust for production)
+            System.err.println("[WebSocket] Failed to retract last draw: " + e.getMessage());
+        }
     }
 
     /**

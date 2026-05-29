@@ -1,6 +1,6 @@
 # Story 3.1: High-Concurrency STOMP WebSocket Messaging Channel
 
-Status: review
+Status: done
 
 ## Story
 
@@ -287,3 +287,12 @@ Claude Sonnet 4.6 (Thinking) / Antigravity
 - ✅ `ConnectionStatusBadge.vue` created — accessible `role="status"` with `aria-live="polite"`, pulsing dot animation, 4 status states (connected/connecting/error/disconnected) with accessible Portuguese labels.
 - ✅ `GameRoom.vue` updated — `ConnectionStatusBadge` imported and placed in navbar, `connectToGame()` called on `onMounted`, `disconnectFromGame()` called on `onUnmounted`. No existing functionality altered.
 - ✅ `sockjs.d.ts` type declaration created to resolve TypeScript error TS7016 for the `/dist/sockjs.min.js` SockJS sub-path.
+
+### Review Findings
+
+- [x] [Review][Decision] Inbound Command DTO for Admin Draw — O método @MessageMapping("/events/{eventId}/draw") em GameWebSocketController.java usa o mesmo DTO DrawBallMessage do envelope de broadcast de saída (que possui redundâncias como timestamp e eventType). Devemos decidir se criamos um DrawBallCommand DTO de entrada simplificado apenas com ballNumber e drawnSequence ou mantemos o envelope completo.
+- [x] [Review][Patch] Parameterize CORS Allowed Origins [WebSocketConfig.java:40]
+- [x] [Review][Patch] Input Validation for Drawn Ball Number [game.ts:137]
+- [x] [Review][Patch] Bean Validation for DrawBallMessage DTO [DrawBallMessage.java:21]
+- [x] [Review][Patch] Connection Status Lifecycle During Reconnection [websocket.ts:85]
+

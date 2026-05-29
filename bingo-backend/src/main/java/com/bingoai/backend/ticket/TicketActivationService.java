@@ -34,6 +34,7 @@ public class TicketActivationService {
 
         return new TicketActivationResponseDto(
                 ticket.getId(),
+                ticket.getEvent().getId(),
                 sessionToken,
                 ticket.getSerial(),
                 ticket.getMatrix()

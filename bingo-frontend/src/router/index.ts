@@ -18,6 +18,11 @@ const router = createRouter({
       name: 'event-creator',
       component: () => import('../components/admin/EventCreator.vue')
     },
+    {
+      path: '/admin/events/:eventId/console',
+      name: 'event-game-console',
+      component: () => import('../components/admin/EventGameConsole.vue')
+    },
     // Player routes (Story 2.1+)
     {
       path: '/activate',

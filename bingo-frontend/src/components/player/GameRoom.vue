@@ -338,7 +338,7 @@ const randomChats = [
 let chatInterval: number | undefined
 
 // Guard & Onboarding Trigger on Mount
-onMounted(() => {
+onMounted(async () => {
   if (!gameStore.isAuthenticated) {
     router.replace('/activate')
     return
@@ -350,11 +350,14 @@ onMounted(() => {
     showTour.value = true
   }
 
-  // Connect to WebSocket for the active event.
-  // Event ID is currently hardcoded as a placeholder until the player session
-  // carries the active eventId (wired in Story 3.2 when the admin draw board is live).
-  // Using a sentinel value that gracefully degrades if no real event is active.
-  const activeEventId = 'placeholder-event-id'
+  // Fetch initial drawn numbers from database and establish WebSocket subscription.
+  // Falls back to a placeholder ID if no dynamic eventId is active.
+  const activeEventId = gameStore.eventId || 'placeholder-event-id'
+  
+  // 1. Recover chronological history from database
+  await gameStore.fetchInitialDraws(activeEventId)
+  
+  // 2. Open WebSocket channel for real-time updates
   gameStore.connectToGame(activeEventId)
 
   // Start simulated chat messages

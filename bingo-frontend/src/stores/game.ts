@@ -10,6 +10,7 @@ import { createWebSocketClient, type WsConnectionStatus, type WsBallDrawnPayload
 const SESSION_TOKEN_KEY = 'bingo_session_token'
 const TICKET_MATRIX_KEY = 'bingo_ticket_matrix'
 const TICKET_SERIAL_KEY = 'bingo_ticket_serial'
+const EVENT_ID_KEY = 'bingo_event_id'
 
 export const useGameStore = defineStore('game', {
   state: () => ({
@@ -24,6 +25,7 @@ export const useGameStore = defineStore('game', {
       }
     })() as TicketMatrixDto | null,
     serial: localStorage.getItem(TICKET_SERIAL_KEY) as string | null,
+    eventId: localStorage.getItem(EVENT_ID_KEY) as string | null,
     isLoading: false,
     error: null as string | null,
 
@@ -60,11 +62,13 @@ export const useGameStore = defineStore('game', {
           this.sessionToken = data.sessionToken
           this.ticketMatrix = data.matrix
           this.serial = data.serial
+          this.eventId = data.eventId
 
           // Persist to localStorage for session recovery on page refresh
           localStorage.setItem(SESSION_TOKEN_KEY, data.sessionToken)
           localStorage.setItem(TICKET_MATRIX_KEY, JSON.stringify(data.matrix))
           localStorage.setItem(TICKET_SERIAL_KEY, data.serial)
+          localStorage.setItem(EVENT_ID_KEY, data.eventId)
           return true
         } else {
           this.error = response.data.error?.message || 'Falha ao ativar cartela.'
@@ -85,12 +89,36 @@ export const useGameStore = defineStore('game', {
       this.sessionToken = null
       this.ticketMatrix = null
       this.serial = null
+      this.eventId = null
       localStorage.removeItem(SESSION_TOKEN_KEY)
       localStorage.removeItem(TICKET_MATRIX_KEY)
       localStorage.removeItem(TICKET_SERIAL_KEY)
+      localStorage.removeItem(EVENT_ID_KEY)
     },
 
     // ── WebSocket actions (Story 3.1) ────────────────────────────────────
+
+    /**
+     * Establishes a STOMP WebSocket connection for the given event.
+     * Cleans up any existing connection before creating a new one.
+     *
+     * @param eventId UUID of the active bingo event
+     */
+    /**
+     * Fetches the chronological history of drawn balls for the active round.
+     * Keeps player's UI perfectly synced retroactively even after page reloads.
+     */
+    async fetchInitialDraws(eventId: string): Promise<void> {
+      try {
+        const response = await api.get<ApiResponse<any[]>>(`/events/${eventId}/draws`)
+        if (response.data.success && response.data.data) {
+          // Extract ball numbers from DrawBallMessage envelopes
+          this.drawnNumbers = response.data.data.map(msg => msg.payload.ballNumber)
+        }
+      } catch (err) {
+        console.error('[Store] Failed to fetch initial drawn numbers:', err)
+      }
+    },
 
     /**
      * Establishes a STOMP WebSocket connection for the given event.
@@ -109,6 +137,7 @@ export const useGameStore = defineStore('game', {
         eventId,
         this.sessionToken,
         (ball: WsBallDrawnPayload) => this.addDrawnNumber(ball.ballNumber),
+        (ball: WsBallDrawnPayload) => this.retractDrawnNumber(ball.ballNumber),
         (status: WsConnectionStatus) => this.setConnectionStatus(status)
       )
     },
@@ -133,8 +162,25 @@ export const useGameStore = defineStore('game', {
      * @param ball Ball number (1–75)
      */
     addDrawnNumber(ball: number): void {
+      if (typeof ball !== 'number' || isNaN(ball) || ball < 1 || ball > 75) {
+        console.warn(`[Store] Ignored invalid ball draw number received: ${ball}`)
+        return
+      }
       if (!this.drawnNumbers.includes(ball)) {
         this.drawnNumbers.push(ball)
+      }
+    },
+
+    /**
+     * Removes a drawn ball number from the local state list.
+     * Called by the WebSocket callback on BALL_RETRACTED events.
+     *
+     * @param ball Ball number (1–75)
+     */
+    retractDrawnNumber(ball: number): void {
+      const index = this.drawnNumbers.indexOf(ball)
+      if (index !== -1) {
+        this.drawnNumbers.splice(index, 1)
       }
     },
 
