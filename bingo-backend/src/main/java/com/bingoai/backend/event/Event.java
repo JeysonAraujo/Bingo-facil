@@ -23,6 +23,9 @@ public class Event {
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
+    @Column(name = "stream_delay_seconds", nullable = false)
+    private Integer streamDelaySeconds = 0;
+
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Round> rounds = new ArrayList<>();
 
@@ -71,6 +74,14 @@ public class Event {
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Integer getStreamDelaySeconds() {
+        return streamDelaySeconds;
+    }
+
+    public void setStreamDelaySeconds(Integer streamDelaySeconds) {
+        this.streamDelaySeconds = streamDelaySeconds;
     }
 
     public List<Round> getRounds() {

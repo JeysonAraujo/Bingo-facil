@@ -34,6 +34,7 @@ export interface EventResponseDto {
   title: string
   scheduledAt: string
   createdAt: string
+  streamDelaySeconds?: number
   rounds: RoundResponseDto[]
 }
 

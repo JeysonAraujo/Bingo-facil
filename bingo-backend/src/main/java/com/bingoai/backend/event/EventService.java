@@ -73,6 +73,7 @@ public class EventService {
                 event.getTitle(),
                 event.getScheduledAt(),
                 event.getCreatedAt(),
+                event.getStreamDelaySeconds(),
                 roundDtos
         );
     }

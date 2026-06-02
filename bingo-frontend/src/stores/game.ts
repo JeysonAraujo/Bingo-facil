@@ -46,6 +46,8 @@ export const useGameStore = defineStore('game', {
     latencySeconds: 0,
     /** Internal STOMP client reference — not exposed in template bindings */
     _wsClient: null as Client | null,
+    /** Tracks active timeout IDs for drawn balls to prevent early marking or ghost markings on retract */
+    _latencyTimeouts: {} as Record<number, number>,
 
     // ── Overrides & Announcements state (Story 3.3) ──────────────────────────
     /** Forced overrides marked by coordinate admins */
@@ -125,6 +127,20 @@ export const useGameStore = defineStore('game', {
      * @param eventId UUID of the active bingo event
      */
     /**
+     * Fetches details of the active event, specifically to get the stream delay.
+     */
+    async fetchEventDetails(eventId: string): Promise<void> {
+      try {
+        const response = await api.get<ApiResponse<any>>(`/events/${eventId}`)
+        if (response.data.success && response.data.data) {
+          this.setLatencySeconds(response.data.data.streamDelaySeconds || 0)
+        }
+      } catch (err) {
+        console.error('[Store] Failed to fetch event details:', err)
+      }
+    },
+
+    /**
      * Fetches the chronological history of drawn balls for the active round.
      * Keeps player's UI perfectly synced retroactively even after page reloads.
      */
@@ -132,8 +148,17 @@ export const useGameStore = defineStore('game', {
       try {
         const response = await api.get<ApiResponse<any[]>>(`/events/${eventId}/draws`)
         if (response.data.success && response.data.data) {
-          // Extract ball numbers from DrawBallMessage envelopes
-          this.drawnNumbers = response.data.data.map(msg => msg.payload.ballNumber)
+          // Clear any current timeouts and drawnNumbers
+          for (const key in this._latencyTimeouts) {
+            clearTimeout(this._latencyTimeouts[key])
+          }
+          this._latencyTimeouts = {}
+          this.drawnNumbers = []
+
+          // Add each drawn number through the queue
+          response.data.data.forEach((msg: any) => {
+            this.addDrawnNumber(msg.payload.ballNumber, msg.timestamp)
+          })
         }
       } catch (err) {
         console.error('[Store] Failed to fetch initial drawn numbers:', err)
@@ -156,7 +181,7 @@ export const useGameStore = defineStore('game', {
       this._wsClient = createWebSocketClient(
         eventId,
         this.sessionToken,
-        (ball: WsBallDrawnPayload) => this.addDrawnNumber(ball.ballNumber),
+        (ball: WsBallDrawnPayload) => this.addDrawnNumber(ball.ballNumber, ball.timestamp),
         (ball: WsBallDrawnPayload) => this.retractDrawnNumber(ball.ballNumber),
         (status: WsConnectionStatus) => this.setConnectionStatus(status),
         this.ticketId,
@@ -165,6 +190,9 @@ export const useGameStore = defineStore('game', {
         },
         (override: WsTicketOverridePayload) => {
           this.applyTicketOverride(override.ballNumber, override.action)
+        },
+        (delay: number) => {
+          this.setLatencySeconds(delay)
         }
       )
     },
@@ -208,6 +236,10 @@ export const useGameStore = defineStore('game', {
         this._wsClient.deactivate()
         this._wsClient = null
       }
+      for (const key in this._latencyTimeouts) {
+        clearTimeout(this._latencyTimeouts[key])
+      }
+      this._latencyTimeouts = {}
       this.setConnectionStatus('disconnected')
     },
 
@@ -217,13 +249,43 @@ export const useGameStore = defineStore('game', {
      * Story 4.1 will intercept this to apply latency queuing before visual marking.
      *
      * @param ball Ball number (1–75)
+     * @param timestamp Optional ISO timestamp of when the ball was drawn
      */
-    addDrawnNumber(ball: number): void {
+    addDrawnNumber(ball: number, timestamp?: string): void {
       if (typeof ball !== 'number' || isNaN(ball) || ball < 1 || ball > 75) {
         console.warn(`[Store] Ignored invalid ball draw number received: ${ball}`)
         return
       }
-      if (!this.drawnNumbers.includes(ball)) {
+      if (this.drawnNumbers.includes(ball)) {
+        return
+      }
+
+      // If we already have a pending timeout for this ball, clear it
+      if (this._latencyTimeouts[ball]) {
+        clearTimeout(this._latencyTimeouts[ball])
+        delete this._latencyTimeouts[ball]
+      }
+
+      // Calculate latency delay
+      let timeToWait = 0
+      if (timestamp && this.latencySeconds > 0) {
+        const drawTime = new Date(timestamp).getTime()
+        const now = Date.now()
+        const elapsed = now - drawTime
+        timeToWait = (this.latencySeconds * 1000) - elapsed
+      } else if (this.latencySeconds > 0) {
+        timeToWait = this.latencySeconds * 1000
+      }
+
+      if (timeToWait > 0) {
+        const timeoutId = window.setTimeout(() => {
+          if (!this.drawnNumbers.includes(ball)) {
+            this.drawnNumbers.push(ball)
+          }
+          delete this._latencyTimeouts[ball]
+        }, timeToWait)
+        this._latencyTimeouts[ball] = timeoutId
+      } else {
         this.drawnNumbers.push(ball)
       }
     },
@@ -235,6 +297,11 @@ export const useGameStore = defineStore('game', {
      * @param ball Ball number (1–75)
      */
     retractDrawnNumber(ball: number): void {
+      // Clear any pending timeout for this ball first
+      if (this._latencyTimeouts[ball]) {
+        clearTimeout(this._latencyTimeouts[ball])
+        delete this._latencyTimeouts[ball]
+      }
       const index = this.drawnNumbers.indexOf(ball)
       if (index !== -1) {
         this.drawnNumbers.splice(index, 1)

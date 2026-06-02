@@ -5,6 +5,8 @@ import com.bingoai.backend.event.EventRepository;
 import com.bingoai.backend.event.Round;
 import com.bingoai.backend.event.RoundRepository;
 import com.bingoai.backend.game.dto.DrawBallMessage;
+import com.bingoai.backend.game.dto.StreamDelayMessage;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,13 +21,16 @@ public class GameService {
     private final EventRepository eventRepository;
     private final RoundRepository roundRepository;
     private final DrawRepository drawRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public GameService(EventRepository eventRepository,
                        RoundRepository roundRepository,
-                       DrawRepository drawRepository) {
+                       DrawRepository drawRepository,
+                       SimpMessagingTemplate messagingTemplate) {
         this.eventRepository = eventRepository;
         this.roundRepository = roundRepository;
         this.drawRepository = drawRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     /**
@@ -59,7 +64,7 @@ public class GameService {
         List<Draw> draws = drawRepository.findByRoundIdOrderByDrawnSequenceAsc(round.getId());
 
         return draws.stream()
-                .map(draw -> new DrawBallMessage(draw.getBallNumber(), draw.getDrawnSequence()))
+                .map(draw -> new DrawBallMessage(draw.getBallNumber(), draw.getDrawnSequence(), draw.getCreatedAt().toInstant()))
                 .collect(Collectors.toList());
     }
 
@@ -76,7 +81,7 @@ public class GameService {
         Draw draw = new Draw(round, ballNumber, sequence);
         Draw saved = drawRepository.save(draw);
 
-        return new DrawBallMessage(saved.getBallNumber(), saved.getDrawnSequence());
+        return new DrawBallMessage(saved.getBallNumber(), saved.getDrawnSequence(), saved.getCreatedAt().toInstant());
     }
 
     /**
@@ -91,6 +96,22 @@ public class GameService {
 
         drawRepository.delete(lastDraw);
 
-        return new DrawBallMessage(lastDraw.getBallNumber(), lastDraw.getDrawnSequence());
+        return new DrawBallMessage(lastDraw.getBallNumber(), lastDraw.getDrawnSequence(), lastDraw.getCreatedAt().toInstant());
+    }
+
+    /**
+     * Updates the stream delay for the event and broadcasts it over WebSockets.
+     */
+    public void updateStreamDelay(UUID eventId, int delay) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
+        event.setStreamDelaySeconds(delay);
+        eventRepository.save(event);
+
+        StreamDelayMessage message = new StreamDelayMessage(delay);
+        messagingTemplate.convertAndSend(
+                "/topic/events/" + eventId + "/delay",
+                message
+        );
     }
 }

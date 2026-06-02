@@ -6,6 +6,7 @@ import com.bingoai.backend.game.dto.DrawBallCommand;
 import com.bingoai.backend.game.dto.DrawBallMessage;
 import com.bingoai.backend.game.dto.TicketOverrideCommand;
 import com.bingoai.backend.game.dto.TicketOverrideMessage;
+import com.bingoai.backend.game.dto.StreamDelayMessage;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -180,5 +181,16 @@ public class GameWebSocketController {
             @Payload BingoClaimMessage claim) {
         // TODO: Story 5.x will wire WinVerificationEngine here and broadcast to /topic/events/{eventId}/claims
         // Stub is intentionally left minimal to avoid premature implementation
+    }
+
+    /**
+     * Broadcasts the stream delay update to all subscribers on the event's delay topic.
+     */
+    public void broadcastStreamDelay(String eventId, int delaySeconds) {
+        StreamDelayMessage message = new StreamDelayMessage(delaySeconds);
+        messagingTemplate.convertAndSend(
+                "/topic/events/" + eventId + "/delay",
+                message
+        );
     }
 }

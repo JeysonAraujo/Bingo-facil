@@ -14,6 +14,7 @@ export interface WsMessage<T> {
 export interface WsBallDrawnPayload {
   ballNumber: number
   drawnSequence: number
+  timestamp?: string
 }
 
 /** Payload for BINGO_CLAIM events (used in Story 5.x) */
@@ -59,6 +60,7 @@ const WS_BASE_URL = 'http://localhost:8080/ws/bingo'
  * @param ticketId        The player's ticket ID (optional, used to subscribe to overrides)
  * @param onAnnouncement  Callback invoked when a new administrative announcement is broadcasted
  * @param onTicketOverride Callback invoked when a cell override is forced on this ticket
+ * @param onDelayChange   Callback invoked when a stream delay update is broadcasted
  * @returns The activated STOMP Client instance (call client.deactivate() to disconnect)
  */
 export function createWebSocketClient(
@@ -69,7 +71,8 @@ export function createWebSocketClient(
   onStatusChange: (status: WsConnectionStatus) => void,
   ticketId?: string | null,
   onAnnouncement?: (announcement: WsAnnouncementPayload) => void,
-  onTicketOverride?: (override: WsTicketOverridePayload) => void
+  onTicketOverride?: (override: WsTicketOverridePayload) => void,
+  onDelayChange?: (delaySeconds: number) => void
 ): Client {
   const client = new Client({
     // SockJS factory: provides HTTP long-polling fallback automatically
@@ -95,6 +98,7 @@ export function createWebSocketClient(
         try {
           const envelope: WsMessage<WsBallDrawnPayload> = JSON.parse(msg.body)
           if (envelope.eventType === 'BALL_DRAWN' && envelope.payload) {
+            envelope.payload.timestamp = envelope.timestamp
             onBallDrawn(envelope.payload)
           } else if (envelope.eventType === 'BALL_RETRACTED' && envelope.payload) {
             onBallRetracted(envelope.payload)
@@ -128,6 +132,20 @@ export function createWebSocketClient(
             }
           } catch (e) {
             console.error('[WebSocket] Failed to parse overrides message:', e)
+          }
+        })
+      }
+
+      // Subscribe to event delay topic if callback is provided
+      if (onDelayChange) {
+        client.subscribe(`/topic/events/${eventId}/delay`, (msg: IMessage) => {
+          try {
+            const envelope = JSON.parse(msg.body)
+            if (envelope.eventType === 'DELAY_UPDATED' && envelope.payload) {
+              onDelayChange(envelope.payload.streamDelaySeconds)
+            }
+          } catch (e) {
+            console.error('[WebSocket] Failed to parse delay message:', e)
           }
         })
       }

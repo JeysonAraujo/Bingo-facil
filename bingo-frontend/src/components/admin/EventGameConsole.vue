@@ -411,7 +411,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
 
@@ -711,6 +711,18 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
     }, 1500)
   }
 }
+
+let debounceTimer: number | null = null
+
+watch(
+  () => adminStore.latencySeconds,
+  (newVal) => {
+    if (debounceTimer) clearTimeout(debounceTimer)
+    debounceTimer = window.setTimeout(async () => {
+      await adminStore.updateStreamDelay(eventId, newVal)
+    }, 500)
+  }
+)
 </script>
 
 <style scoped>

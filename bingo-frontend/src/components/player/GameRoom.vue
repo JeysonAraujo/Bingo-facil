@@ -198,13 +198,36 @@
                       v-for="(card, cardIdx) in gameStore.ticketMatrix?.cards"
                       :key="cardIdx"
                       class="mini-map-dot"
-                      :class="{ 'dot-active': activeMobileCardIndex === cardIdx }"
+                      :class="{
+                        'dot-active': activeMobileCardIndex === cardIdx,
+                        'dot-flash-green': cardFlashes[cardIdx],
+                        'dot-near-win': nearWinCards[cardIdx]
+                      }"
                       @click="activeMobileCardIndex = cardIdx"
                       :aria-label="`Ver Cartela ${cardIdx + 1}`"
                     >
                       <span>{{ cardIdx + 1 }}</span>
+                      <!-- +1 Bubble -->
+                      <transition name="bounce">
+                        <span v-if="cardFlashes[cardIdx]" class="plus-one-badge">+1</span>
+                      </transition>
                     </button>
                   </div>
+
+                  <!-- Sliding Banner Alert -->
+                  <transition name="slide-y">
+                    <div
+                      v-if="nearWinAlertCardIndex !== null"
+                      class="near-win-banner-alert"
+                      @click="focusNearWinCard(nearWinAlertCardIndex)"
+                    >
+                      <v-icon color="#0b132b" class="mr-2">mdi-alert-decagram-outline</v-icon>
+                      <span class="banner-text">
+                        Card {{ nearWinAlertCardIndex + 1 }} is almost there! Only 1 number left!
+                      </span>
+                      <v-icon color="#0b132b" class="ml-auto" size="small">mdi-chevron-right</v-icon>
+                    </div>
+                  </transition>
 
                   <!-- Carousel -->
                   <v-carousel
@@ -309,6 +332,7 @@ import { useGameStore } from '../../stores/game'
 import BingoCard from './BingoCard.vue'
 import OnboardingTour from './OnboardingTour.vue'
 import ConnectionStatusBadge from '../shared/ConnectionStatusBadge.vue'
+import type { CardMatrixDto } from '../../services/api'
 
 const router = useRouter()
 const gameStore = useGameStore()
@@ -330,6 +354,64 @@ const markedNumbers = computed(() => {
   gameStore.overriddenNumbers.forEach((n) => union.add(n))
   return union
 })
+
+// Story 4.3 Mobile Mini-map and Near-win alerts states
+const prevMarkedCounts = ref<number[]>([])
+const cardFlashes = ref<Record<number, boolean>>({})
+const nearWinAlertCardIndex = ref<number | null>(null)
+
+function getCardMarkedCount(card: CardMatrixDto): number {
+  let count = 0
+  const columnKeys: (keyof CardMatrixDto)[] = ['b', 'i', 'n', 'g', 'o']
+  for (let c = 0; c < 5; c++) {
+    const key = columnKeys[c]
+    const col = card[key] || []
+    for (let r = 0; r < 5; r++) {
+      if (r === 2 && c === 2) continue
+      const val = col[r]
+      if (val !== undefined && markedNumbers.value.has(val)) {
+        count++
+      }
+    }
+  }
+  return count
+}
+
+const nearWinCards = computed(() => {
+  const cards = gameStore.ticketMatrix?.cards || []
+  return cards.map((card) => getCardMarkedCount(card) === 23)
+})
+
+function focusNearWinCard(idx: number) {
+  activeMobileCardIndex.value = idx
+  nearWinAlertCardIndex.value = null
+}
+
+watch(markedNumbers, () => {
+  const cards = gameStore.ticketMatrix?.cards || []
+  cards.forEach((card, idx) => {
+    const newCount = getCardMarkedCount(card)
+    const prevCount = prevMarkedCounts.value[idx] || 0
+    if (newCount > prevCount) {
+      if (activeMobileCardIndex.value !== idx) {
+        cardFlashes.value[idx] = true
+        window.setTimeout(() => {
+          cardFlashes.value[idx] = false
+        }, 1500)
+      }
+    }
+    prevMarkedCounts.value[idx] = newCount
+  })
+}, { deep: true })
+
+watch(nearWinCards, (newVals, oldVals) => {
+  newVals.forEach((isNearWin, idx) => {
+    const wasNearWin = oldVals && oldVals[idx]
+    if (isNearWin && !wasNearWin) {
+      nearWinAlertCardIndex.value = idx
+    }
+  })
+}, { deep: true })
 
 // Clears the active announcement ticker
 function clearTicker() {
@@ -383,6 +465,9 @@ onMounted(async () => {
   // Falls back to a placeholder ID if no dynamic eventId is active.
   const activeEventId = gameStore.eventId || 'placeholder-event-id'
   
+  // 0. Recover event details (such as initial stream delay)
+  await gameStore.fetchEventDetails(activeEventId)
+  
   // 1. Recover chronological history from database
   await gameStore.fetchInitialDraws(activeEventId)
 
@@ -393,6 +478,10 @@ onMounted(async () => {
   
   // 2. Open WebSocket channel for real-time updates
   gameStore.connectToGame(activeEventId)
+
+  // Initialize previous marked counts for off-screen flashes
+  const cards = gameStore.ticketMatrix?.cards || []
+  prevMarkedCounts.value = cards.map((card) => getCardMarkedCount(card))
 
   // Start simulated chat messages
   chatInterval = window.setInterval(() => {
@@ -1106,6 +1195,105 @@ watch(activeTab, (newTab) => {
   }
   100% {
     transform: translate3d(-100%, 0, 0);
+  }
+}
+
+/* Story 4.3 - Mini-map and near-win styles */
+.dot-flash-green {
+  background-color: #2e7d32 !important;
+  border-color: #4caf50 !important;
+  color: #ffffff !important;
+  animation: flash-green-anim 1.5s ease-out;
+}
+
+@keyframes flash-green-anim {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.dot-near-win {
+  border-color: #ffd600 !important;
+  box-shadow: 0 0 12px rgba(255, 214, 0, 0.8);
+  animation: gold-pulse-mini 1.5s infinite ease-in-out;
+}
+
+@keyframes gold-pulse-mini {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(255, 214, 0, 0.5);
+    border-color: #ffd600;
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(255, 214, 0, 0.9);
+    border-color: #ffab00;
+  }
+}
+
+.plus-one-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #ef4444;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 900;
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 1px solid #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.near-win-banner-alert {
+  background: linear-gradient(135deg, #ffd600 0%, #ffab00 100%);
+  color: #0b132b;
+  font-weight: 800;
+  font-size: 0.9rem;
+  padding: 12px 18px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 10px 25px rgba(255, 214, 0, 0.4);
+  cursor: pointer;
+  z-index: 10;
+  margin-bottom: 12px;
+  animation: pulse-border 1.5s infinite alternate;
+}
+
+@keyframes pulse-border {
+  0% {
+    box-shadow: 0 10px 25px rgba(255, 214, 0, 0.4);
+  }
+  100% {
+    box-shadow: 0 10px 30px rgba(255, 214, 0, 0.7), 0 0 0 4px rgba(255, 214, 0, 0.3);
+  }
+}
+
+/* slide-y transition */
+.slide-y-enter-active,
+.slide-y-leave-active {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.slide-y-enter-from,
+.slide-y-leave-to {
+  transform: translateY(-20px);
+  opacity: 0;
+}
+
+/* bounce transition */
+.bounce-enter-active {
+  animation: bounce-in 0.5s;
+}
+.bounce-leave-active {
+  animation: bounce-in 0.5s reverse;
+}
+@keyframes bounce-in {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 </style>

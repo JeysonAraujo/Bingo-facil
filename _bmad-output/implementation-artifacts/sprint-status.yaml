@@ -56,10 +56,10 @@ development_status:
   3-2-error-proof-75-key-admin-draw-board-and-undo-safeguard: done
   3-3-administrative-custom-message-broadcasts-and-overrides: done
   epic-3-retrospective: optional
-  epic-4: backlog
-  4-1-client-side-latency-alignment-engine: backlog
-  4-2-automated-marking-cartelao-cards-with-accessibility-checks: backlog
-  4-3-mobile-mini-map-selector-and-glowing-quase-la-alerts: backlog
+  epic-4: done
+  4-1-client-side-latency-alignment-engine: done
+  4-2-automated-marking-cartelao-cards-with-accessibility-checks: done
+  4-3-mobile-mini-map-selector-and-glowing-quase-la-alerts: done
   epic-4-retrospective: optional
   epic-5: backlog
   5-1-reactive-bingo-unlock-and-server-side-claims-engine: backlog

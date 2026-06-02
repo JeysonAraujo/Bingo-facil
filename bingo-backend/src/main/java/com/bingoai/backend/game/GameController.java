@@ -36,4 +36,23 @@ public class GameController {
                     .body(ApiResponse.error("SERVER_ERROR", e.getMessage()));
         }
     }
+
+    /**
+     * Updates the stream delay (latency alignment) for the event.
+     */
+    @PutMapping("/{eventId}/delay")
+    public ResponseEntity<ApiResponse<Void>> updateStreamDelay(
+            @PathVariable UUID eventId,
+            @RequestParam int delay) {
+        try {
+            gameService.updateStreamDelay(eventId, delay);
+            return ResponseEntity.ok(ApiResponse.success(null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("NOT_FOUND", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("SERVER_ERROR", e.getMessage()));
+        }
+    }
 }

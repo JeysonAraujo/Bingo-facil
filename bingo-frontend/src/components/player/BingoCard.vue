@@ -22,14 +22,23 @@
             'free-cell': row === 3 && colIdx === 2,
             'marked-cell': isCellMarked(row - 1, colIdx),
           }"
+          :aria-label="getCellAriaLabel(row - 1, colIdx)"
         >
           <div class="cell-content">
             <template v-if="row === 3 && colIdx === 2">
-              <v-icon class="star-icon" size="small">mdi-star</v-icon>
+              <v-icon class="star-icon" size="small" aria-hidden="true">mdi-star</v-icon>
               <span class="free-text">GRÁTIS</span>
             </template>
             <template v-else>
               <span class="cell-number">{{ getCellValue(row - 1, colIdx) }}</span>
+              <v-icon
+                v-if="isCellMarked(row - 1, colIdx)"
+                class="check-icon"
+                size="x-small"
+                aria-hidden="true"
+              >
+                mdi-check-bold
+              </v-icon>
             </template>
           </div>
         </div>
@@ -88,6 +97,18 @@ function getCellValue(rowIndex: number, colIndex: number): number | string {
   
   if (rowIndex === 2 && colIndex === 2) return 'FREE'
   return val !== undefined ? val : ''
+}
+
+// Get the accessible label for screen readers
+function getCellAriaLabel(rowIndex: number, colIndex: number): string {
+  if (rowIndex === 2 && colIndex === 2) {
+    return 'Espaço Grátis, marcado'
+  }
+  const value = getCellValue(rowIndex, colIndex)
+  if (isCellMarked(rowIndex, colIndex)) {
+    return `Number ${value}, marked green`
+  }
+  return `Number ${value}`
 }
 
 // Calculate the number of marked cells (excluding the FREE center which is already marked)
@@ -195,7 +216,8 @@ const markedCount = computed(() => {
 
 /* Marked Cell Styles */
 .marked-cell {
-  border-color: rgba(46, 125, 50, 0.2);
+  border-color: #2e7d32 !important;
+  animation: green-pulse 2s infinite ease-in-out;
 }
 
 .marked-cell .cell-content::before {
@@ -216,6 +238,28 @@ const markedCount = computed(() => {
   z-index: 2;
   font-size: 1.35rem;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.check-icon {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  color: #ffffff !important;
+  z-index: 3;
+  font-size: 0.65rem !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes green-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(46, 125, 50, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(46, 125, 50, 0);
+  }
 }
 
 /* FREE/GRÁTIS Cell Styles */

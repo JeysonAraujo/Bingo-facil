@@ -28,8 +28,12 @@ public class DrawBallMessage {
     }
 
     public DrawBallMessage(int ballNumber, int drawnSequence) {
+        this(ballNumber, drawnSequence, Instant.now());
+    }
+
+    public DrawBallMessage(int ballNumber, int drawnSequence, Instant timestamp) {
         this.eventType = "BALL_DRAWN";
-        this.timestamp = Instant.now().toString();
+        this.timestamp = timestamp != null ? timestamp.toString() : Instant.now().toString();
         this.payload = new Payload(ballNumber, drawnSequence);
     }
 

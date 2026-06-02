@@ -9,16 +9,22 @@ public class EventResponseDto {
     private String title;
     private OffsetDateTime scheduledAt;
     private OffsetDateTime createdAt;
+    private Integer streamDelaySeconds;
     private List<RoundResponseDto> rounds;
 
     public EventResponseDto() {
     }
 
     public EventResponseDto(UUID id, String title, OffsetDateTime scheduledAt, OffsetDateTime createdAt, List<RoundResponseDto> rounds) {
+        this(id, title, scheduledAt, createdAt, 0, rounds);
+    }
+
+    public EventResponseDto(UUID id, String title, OffsetDateTime scheduledAt, OffsetDateTime createdAt, Integer streamDelaySeconds, List<RoundResponseDto> rounds) {
         this.id = id;
         this.title = title;
         this.scheduledAt = scheduledAt;
         this.createdAt = createdAt;
+        this.streamDelaySeconds = streamDelaySeconds;
         this.rounds = rounds;
     }
 
@@ -52,6 +58,14 @@ public class EventResponseDto {
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Integer getStreamDelaySeconds() {
+        return streamDelaySeconds;
+    }
+
+    public void setStreamDelaySeconds(Integer streamDelaySeconds) {
+        this.streamDelaySeconds = streamDelaySeconds;
     }
 
     public List<RoundResponseDto> getRounds() {

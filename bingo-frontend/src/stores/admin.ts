@@ -107,6 +107,9 @@ export const useAdminStore = defineStore('admin', {
         const response = await api.get<ApiResponse<EventResponseDto>>(`/events/${eventId}`)
         if (response.data.success) {
           this.activeConsoleEvent = response.data.data
+          if (this.activeConsoleEvent) {
+            this.latencySeconds = this.activeConsoleEvent.streamDelaySeconds || 0
+          }
         } else {
           this.error = response.data.error?.message || 'Falha ao buscar detalhes do evento'
         }
@@ -269,6 +272,24 @@ export const useAdminStore = defineStore('admin', {
         }
       } else {
         console.error('[AdminStore] STOMP Client not connected. Failed to send ticket override.')
+      }
+    },
+
+    /**
+     * Updates the stream delay for the event on the server and broadcasts the update.
+     */
+    async updateStreamDelay(eventId: string, delay: number) {
+      try {
+        const response = await api.put(`/events/${eventId}/delay?delay=${delay}`)
+        if (response.status === 200) {
+          this.latencySeconds = delay
+          if (this.activeConsoleEvent) {
+            this.activeConsoleEvent.streamDelaySeconds = delay
+          }
+        }
+      } catch (err: any) {
+        console.error('[AdminStore] Failed to update stream delay:', err)
+        this.error = err.response?.data?.error?.message || err.message || 'Falha ao atualizar o delay da transmissão'
       }
     }
   }
