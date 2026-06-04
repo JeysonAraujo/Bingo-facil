@@ -265,12 +265,18 @@ const activePanel = ref<number[]>([0])
 const prizeTypes = [
   { title: 'Linha', value: 'LINE' },
   { title: 'Coluna', value: 'COLUMN' },
+  { title: 'Diagonal', value: 'DIAGONAL' },
+  { title: 'Janelão (Borda Externa)', value: 'OUTER_BORDER' },
+  { title: 'Janelinha (Borda Interna)', value: 'INNER_BORDER' },
   { title: 'Cartela Cheia', value: 'FULL_CARD' }
 ]
 
 const drawPatterns = [
   { title: 'Qualquer Linha', value: 'ANY_LINE' },
   { title: 'Qualquer Coluna', value: 'ANY_COLUMN' },
+  { title: 'Diagonais', value: 'DIAGONAL' },
+  { title: 'Janelão (Borda Externa)', value: 'OUTER_BORDER' },
+  { title: 'Janelinha (Borda Interna)', value: 'INNER_BORDER' },
   { title: 'Grade Completa', value: 'FULL_GRID' }
 ]
 
@@ -332,6 +338,12 @@ const onPrizeTypeChange = (rIndex: number, pIndex: number) => {
     prize.drawPattern = 'ANY_LINE'
   } else if (prize.type === 'COLUMN') {
     prize.drawPattern = 'ANY_COLUMN'
+  } else if (prize.type === 'DIAGONAL') {
+    prize.drawPattern = 'DIAGONAL'
+  } else if (prize.type === 'OUTER_BORDER') {
+    prize.drawPattern = 'OUTER_BORDER'
+  } else if (prize.type === 'INNER_BORDER') {
+    prize.drawPattern = 'INNER_BORDER'
   } else if (prize.type === 'FULL_CARD') {
     prize.drawPattern = 'FULL_GRID'
   }

@@ -72,7 +72,8 @@ export function createWebSocketClient(
   ticketId?: string | null,
   onAnnouncement?: (announcement: WsAnnouncementPayload) => void,
   onTicketOverride?: (override: WsTicketOverridePayload) => void,
-  onDelayChange?: (delaySeconds: number) => void
+  onDelayChange?: (delaySeconds: number) => void,
+  onClaim?: (claim: any) => void
 ): Client {
   const client = new Client({
     // SockJS factory: provides HTTP long-polling fallback automatically
@@ -146,6 +147,18 @@ export function createWebSocketClient(
             }
           } catch (e) {
             console.error('[WebSocket] Failed to parse delay message:', e)
+          }
+        })
+      }
+
+      // Subscribe to event claims topic if callback is provided
+      if (onClaim) {
+        client.subscribe(`/topic/events/${eventId}/claims`, (msg: IMessage) => {
+          try {
+            const envelope = JSON.parse(msg.body)
+            onClaim(envelope)
+          } catch (e) {
+            console.error('[WebSocket] Failed to parse claims message:', e)
           }
         })
       }

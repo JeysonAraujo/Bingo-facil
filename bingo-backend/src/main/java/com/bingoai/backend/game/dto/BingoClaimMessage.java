@@ -27,10 +27,10 @@ public class BingoClaimMessage {
     public BingoClaimMessage() {
     }
 
-    public BingoClaimMessage(String ticketId, String sessionToken) {
+    public BingoClaimMessage(String ticketId, String sessionToken, Integer cardIndex, String claimId, String status, String serial) {
         this.eventType = "BINGO_CLAIM";
         this.timestamp = Instant.now().toString();
-        this.payload = new Payload(ticketId, sessionToken);
+        this.payload = new Payload(ticketId, sessionToken, cardIndex, claimId, status, serial);
     }
 
     public String getEventType() {
@@ -60,13 +60,21 @@ public class BingoClaimMessage {
     public static class Payload {
         private String ticketId;
         private String sessionToken;
+        private Integer cardIndex;
+        private String claimId;
+        private String status;
+        private String serial;
 
         public Payload() {
         }
 
-        public Payload(String ticketId, String sessionToken) {
+        public Payload(String ticketId, String sessionToken, Integer cardIndex, String claimId, String status, String serial) {
             this.ticketId = ticketId;
             this.sessionToken = sessionToken;
+            this.cardIndex = cardIndex;
+            this.claimId = claimId;
+            this.status = status;
+            this.serial = serial;
         }
 
         public String getTicketId() {
@@ -83,6 +91,38 @@ public class BingoClaimMessage {
 
         public void setSessionToken(String sessionToken) {
             this.sessionToken = sessionToken;
+        }
+
+        public Integer getCardIndex() {
+            return cardIndex;
+        }
+
+        public void setCardIndex(Integer cardIndex) {
+            this.cardIndex = cardIndex;
+        }
+
+        public String getClaimId() {
+            return claimId;
+        }
+
+        public void setClaimId(String claimId) {
+            this.claimId = claimId;
+        }
+
+        public String getStatus() {
+            return status;
+        }
+
+        public void setStatus(String status) {
+            this.status = status;
+        }
+
+        public String getSerial() {
+            return serial;
+        }
+
+        public void setSerial(String serial) {
+            this.serial = serial;
         }
     }
 }

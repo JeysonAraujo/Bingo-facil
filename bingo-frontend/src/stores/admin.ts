@@ -13,7 +13,8 @@ export const useAdminStore = defineStore('admin', {
     drawnConsoleNumbers: [] as number[],
     latencySeconds: 0,
     _wsAdminClient: null as any,
-    searchedTicket: null as any // TicketResponseDto for overrides
+    searchedTicket: null as any, // TicketResponseDto for overrides
+    claims: [] as any[]
   }),
 
   actions: {
@@ -184,8 +185,77 @@ export const useAdminStore = defineStore('admin', {
             this.drawnConsoleNumbers.splice(idx, 1)
           }
         },
-        () => {} // Status callback ignored for simplicity in admin panel
+        () => {}, // Status callback ignored for simplicity in admin panel
+        null, // ticketId
+        undefined, // onAnnouncement
+        undefined, // onTicketOverride
+        undefined, // onDelayChange
+        (claimMsg) => {
+          if (claimMsg.eventType === 'BINGO_CLAIM') {
+            const exists = this.claims.some((c) => c.claimId === claimMsg.payload.claimId)
+            if (!exists) {
+              this.claims.push({
+                claimId: claimMsg.payload.claimId,
+                ticketId: claimMsg.payload.ticketId,
+                cardIndex: claimMsg.payload.cardIndex,
+                status: claimMsg.payload.status,
+                serial: claimMsg.payload.serial,
+                createdAt: claimMsg.timestamp
+              })
+            }
+          } else if (claimMsg.eventType === 'BINGO_APPROVED' || claimMsg.eventType === 'BINGO_REJECTED') {
+            const idx = this.claims.findIndex((c) => c.claimId === claimMsg.payload.claimId)
+            if (idx !== -1) {
+              this.claims[idx].status = claimMsg.payload.status
+            }
+          }
+        }
       )
+    },
+
+    async fetchClaims(roundId: string) {
+      try {
+        const response = await api.get<ApiResponse<any[]>>(`/claims/round/${roundId}`)
+        if (response.data.success && response.data.data) {
+          this.claims = response.data.data
+        }
+      } catch (err) {
+        console.error('[AdminStore] Failed to fetch initial claims:', err)
+      }
+    },
+
+    async approveClaim(claimId: string): Promise<boolean> {
+      try {
+        const response = await api.post<ApiResponse<any>>(`/claims/${claimId}/approve`)
+        if (response.data.success) {
+          const idx = this.claims.findIndex((c) => c.claimId === claimId)
+          if (idx !== -1) {
+            this.claims[idx].status = 'APPROVED'
+          }
+          return true
+        }
+        return false
+      } catch (err) {
+        console.error('[AdminStore] Failed to approve claim:', err)
+        return false
+      }
+    },
+
+    async rejectClaim(claimId: string): Promise<boolean> {
+      try {
+        const response = await api.post<ApiResponse<any>>(`/claims/${claimId}/reject`)
+        if (response.data.success) {
+          const idx = this.claims.findIndex((c) => c.claimId === claimId)
+          if (idx !== -1) {
+            this.claims[idx].status = 'REJECTED'
+          }
+          return true
+        }
+        return false
+      } catch (err) {
+        console.error('[AdminStore] Failed to reject claim:', err)
+        return false
+      }
     },
 
     /**

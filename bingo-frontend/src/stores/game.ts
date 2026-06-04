@@ -36,6 +36,8 @@ export const useGameStore = defineStore('game', {
     ticketId: localStorage.getItem(TICKET_ID_KEY) as string | null,
     isLoading: false,
     error: null as string | null,
+    eventDetails: null as any | null,
+    isSubmittingClaim: false,
 
     // ── WebSocket real-time game state (Story 3.1) ──────────────────────────
     /** Current WebSocket connection status for reactive UI indicators */
@@ -53,7 +55,12 @@ export const useGameStore = defineStore('game', {
     /** Forced overrides marked by coordinate admins */
     overriddenNumbers: [] as number[],
     /** Currently active global text announcement */
-    activeAnnouncement: null as string | null
+    activeAnnouncement: null as string | null,
+
+    // ── Victory Celebration state (Story 5.2) ───────────────────────────────
+    winnerSerial: null as string | null,
+    winnerCardIndex: null as number | null,
+    showVictoryOverlay: false
   }),
 
   getters: {
@@ -133,10 +140,29 @@ export const useGameStore = defineStore('game', {
       try {
         const response = await api.get<ApiResponse<any>>(`/events/${eventId}`)
         if (response.data.success && response.data.data) {
+          this.eventDetails = response.data.data
           this.setLatencySeconds(response.data.data.streamDelaySeconds || 0)
         }
       } catch (err) {
         console.error('[Store] Failed to fetch event details:', err)
+      }
+    },
+
+    async claimBingo(cardIndex: number): Promise<boolean> {
+      if (this.isSubmittingClaim || !this.ticketId || !this.sessionToken) return false
+      this.isSubmittingClaim = true
+      try {
+        const response = await api.post<ApiResponse<any>>('/claims', {
+          ticketId: this.ticketId,
+          sessionToken: this.sessionToken,
+          cardIndex: cardIndex
+        })
+        return response.data.success
+      } catch (err: any) {
+        console.error('[Store] Claim BINGO failed:', err)
+        return false
+      } finally {
+        this.isSubmittingClaim = false
       }
     },
 
@@ -178,6 +204,10 @@ export const useGameStore = defineStore('game', {
         this._wsClient = null
       }
 
+      this.winnerSerial = null
+      this.winnerCardIndex = null
+      this.showVictoryOverlay = false
+
       this._wsClient = createWebSocketClient(
         eventId,
         this.sessionToken,
@@ -193,8 +223,21 @@ export const useGameStore = defineStore('game', {
         },
         (delay: number) => {
           this.setLatencySeconds(delay)
+        },
+        (claimMsg) => {
+          if (claimMsg.eventType === 'BINGO_APPROVED') {
+            this.winnerSerial = claimMsg.payload.serial
+            this.winnerCardIndex = claimMsg.payload.cardIndex
+            this.showVictoryOverlay = true
+          }
         }
       )
+    },
+
+    dismissVictory() {
+      this.showVictoryOverlay = false
+      this.winnerSerial = null
+      this.winnerCardIndex = null
     },
 
     /**

@@ -178,7 +178,7 @@
               <!-- CARDS AREA CONTAINER -->
               <div id="bingo-cards-container" class="cards-outer-container">
                 <!-- DESKTOP BINGO CARDS: 2x2 Grid (Visible on md and up) -->
-                <div class="d-none d-md-grid cards-desktop-grid">
+                <div class="cards-desktop-grid">
                   <BingoCard
                     v-for="(card, cardIdx) in gameStore.ticketMatrix?.cards"
                     :key="cardIdx"
@@ -257,7 +257,9 @@
               <!-- BINGO CLAIM BUTTON CONTAINER -->
               <div id="bingo-claim-button-container" class="bingo-action-area mt-4">
                 <button
+                  ref="claimBingoBtnRef"
                   class="claim-bingo-btn"
+                  :disabled="!isBingoButtonUnlocked"
                   @click="triggerClaimBingo"
                   aria-label="Gritar Bingo!"
                 >
@@ -322,6 +324,51 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Victory Celebration Full Screen Overlay -->
+    <v-dialog v-model="gameStore.showVictoryOverlay" fullscreen transition="dialog-bottom-transition" persistent>
+      <v-card class="d-flex flex-column align-center justify-center text-white" style="position: relative; overflow: hidden; background-color: #0b1329 !important;">
+        <!-- Canvas for high quality confetti -->
+        <canvas ref="canvasRef" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;"></canvas>
+
+        <div class="text-center pa-6 d-flex flex-column align-center justify-center" style="z-index: 20;">
+          <!-- Big pulsing trophy -->
+          <div class="victory-trophy-ring mb-6">
+            <v-icon color="amber-darken-1" size="96" class="victory-trophy-icon">mdi-trophy-award</v-icon>
+          </div>
+
+          <h1 class="text-h2 font-weight-black text-amber-accent-3 mb-4 animate-bounce">
+            Temos um Vencedor!
+          </h1>
+          
+          <p class="text-h4 font-weight-bold text-white mb-6">
+            🎉 PARABÉNS BINGO! 🎉
+          </p>
+
+          <v-card class="bg-slate-900 border-slate-800 pa-6 rounded-xl mb-8 shadow-2xl text-center" style="max-width: 500px; background-color: #121c33 !important; border: 1px solid rgba(255,255,255,0.08) !important;">
+            <p class="text-subtitle-1 text-slate-300 mb-2">
+              A cartela com a chave serial
+            </p>
+            <div class="text-h3 font-weight-black text-amber-lighten-2 mb-4 tracking-widest uppercase">
+              {{ gameStore.winnerSerial }}
+            </div>
+            <p class="text-subtitle-2 text-slate-400 mb-0">
+              completou com sucesso um padrão vencedor e foi validada pela banca!
+            </p>
+          </v-card>
+
+          <v-btn
+            color="amber-darken-2"
+            variant="flat"
+            size="x-large"
+            class="px-10 py-4 font-weight-black rounded-pill text-slate-950 hover-scale-up text-capitalize"
+            @click="gameStore.dismissVictory"
+          >
+            Continuar Jogando
+          </v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
   </v-app>
 </template>
 
@@ -336,6 +383,148 @@ import type { CardMatrixDto } from '../../services/api'
 
 const router = useRouter()
 const gameStore = useGameStore()
+
+// Victory celebration logic
+const canvasRef = ref<HTMLCanvasElement | null>(null)
+let animationFrameId: number | null = null
+
+interface ConfettiParticle {
+  x: number
+  y: number
+  size: number
+  color: string
+  speedX: number
+  speedY: number
+  rotation: number
+  rotationSpeed: number
+}
+
+const colors = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#ef4444']
+
+const playSynthesizedChime = () => {
+  try {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const playNote = (freq: number, start: number, duration: number) => {
+      const osc = audioCtx.createOscillator()
+      const gainNode = audioCtx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, start)
+      gainNode.gain.setValueAtTime(0.1, start)
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+      osc.connect(gainNode)
+      gainNode.connect(audioCtx.destination)
+      osc.start(start)
+      osc.stop(start + duration)
+    }
+    const now = audioCtx.currentTime
+    playNote(523.25, now, 0.4) // C5
+    playNote(659.25, now + 0.1, 0.4) // E5
+    playNote(783.99, now + 0.2, 0.4) // G5
+    playNote(1046.50, now + 0.3, 0.8) // C6
+  } catch (e) {
+    console.error('Web Audio API chime failed:', e)
+  }
+}
+
+const triggerVictorySound = () => {
+  const audio = new Audio('/victory.mp3')
+  audio.play().catch(() => {
+    // Fail-safe programmatic chime if file is missing or blocked
+    playSynthesizedChime()
+  })
+}
+
+const startConfetti = () => {
+  const canvas = canvasRef.value
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  canvas.width = window.innerWidth
+  canvas.height = window.innerHeight
+
+  const particles: ConfettiParticle[] = []
+  
+  // Spawn initial burst
+  for (let i = 0; i < 150; i++) {
+    particles.push({
+      x: canvas.width / 2 + (Math.random() - 0.5) * 50,
+      y: canvas.height + 20,
+      size: Math.random() * 8 + 6,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      speedX: (Math.random() - 0.5) * 15,
+      speedY: -Math.random() * 15 - 10,
+      rotation: Math.random() * 360,
+      rotationSpeed: (Math.random() - 0.5) * 10
+    })
+  }
+
+  const animate = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    
+    if (particles.length < 100 && Math.random() < 0.4) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: -10,
+        size: Math.random() * 8 + 6,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        speedX: (Math.random() - 0.5) * 4,
+        speedY: Math.random() * 5 + 2,
+        rotation: Math.random() * 360,
+        rotationSpeed: (Math.random() - 0.5) * 5
+      })
+    }
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i]
+      p.x += p.speedX
+      p.y += p.speedY
+      p.rotation += p.rotationSpeed
+      p.speedY += 0.15
+      p.speedX *= 0.98
+
+      ctx.save()
+      ctx.translate(p.x, p.y)
+      ctx.rotate((p.rotation * Math.PI) / 180)
+      ctx.fillStyle = p.color
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size)
+      ctx.restore()
+
+      if (p.y > canvas.height + 50 || p.x < -50 || p.x > canvas.width + 50) {
+        particles.splice(i, 1)
+      }
+    }
+
+    animationFrameId = requestAnimationFrame(animate)
+  }
+
+  animate()
+}
+
+const stopConfetti = () => {
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId)
+    animationFrameId = null
+  }
+}
+
+watch(
+  () => gameStore.showVictoryOverlay,
+  (show) => {
+    if (show) {
+      triggerVictorySound()
+      nextTick(() => {
+        startConfetti()
+      })
+    } else {
+      stopConfetti()
+    }
+  }
+)
+
+onUnmounted(() => {
+  stopConfetti()
+})
 
 // View state
 const activeTab = ref('chat')
@@ -353,6 +542,163 @@ const markedNumbers = computed(() => {
   gameStore.drawnNumbers.forEach((n) => union.add(n))
   gameStore.overriddenNumbers.forEach((n) => union.add(n))
   return union
+})
+
+const claimBingoBtnRef = ref<HTMLElement | null>(null)
+
+function getCardCellValue(card: any, row: number, col: number): number {
+  const columnKeys = ['b', 'i', 'n', 'g', 'o']
+  const key = columnKeys[col]
+  return card[key] ? card[key][row] : 0
+}
+
+function isCardCellMarked(card: any, row: number, col: number): boolean {
+  if (row === 2 && col === 2) return true // FREE space is always marked!
+  const val = getCardCellValue(card, row, col)
+  return markedNumbers.value.has(val)
+}
+
+function checkCardLine(card: any): boolean {
+  for (let row = 0; row < 5; row++) {
+    let rowMarked = true
+    for (let col = 0; col < 5; col++) {
+      if (!isCardCellMarked(card, row, col)) {
+        rowMarked = false
+        break
+      }
+    }
+    if (rowMarked) return true
+  }
+  return false
+}
+
+function checkCardColumn(card: any): boolean {
+  for (let col = 0; col < 5; col++) {
+    let colMarked = true
+    for (let row = 0; row < 5; row++) {
+      if (!isCardCellMarked(card, row, col)) {
+        colMarked = false
+        break
+      }
+    }
+    if (colMarked) return true
+  }
+  return false
+}
+
+function checkCardDiagonal(card: any): boolean {
+  let mainDiag = true
+  for (let i = 0; i < 5; i++) {
+    if (!isCardCellMarked(card, i, i)) {
+      mainDiag = false
+      break
+    }
+  }
+  if (mainDiag) return true
+
+  let antiDiag = true
+  for (let i = 0; i < 5; i++) {
+    if (!isCardCellMarked(card, i, 4 - i)) {
+      antiDiag = false
+      break
+    }
+  }
+  return antiDiag
+}
+
+function checkCardOuterBorder(card: any): boolean {
+  // Row 0
+  for (let col = 0; col < 5; col++) {
+    if (!isCardCellMarked(card, 0, col)) return false
+  }
+  // Row 4
+  for (let col = 0; col < 5; col++) {
+    if (!isCardCellMarked(card, 4, col)) return false
+  }
+  // Col 0 (rows 1..3)
+  for (let row = 1; row <= 3; row++) {
+    if (!isCardCellMarked(card, row, 0)) return false
+  }
+  // Col 4 (rows 1..3)
+  for (let row = 1; row <= 3; row++) {
+    if (!isCardCellMarked(card, row, 4)) return false
+  }
+  return true
+}
+
+function checkCardInnerBorder(card: any): boolean {
+  // Row 1 (cols 1..3)
+  if (!isCardCellMarked(card, 1, 1)) return false
+  if (!isCardCellMarked(card, 1, 2)) return false
+  if (!isCardCellMarked(card, 1, 3)) return false
+
+  // Row 2 (cols 1, 3)
+  if (!isCardCellMarked(card, 2, 1)) return false
+  if (!isCardCellMarked(card, 2, 3)) return false
+
+  // Row 3 (cols 1..3)
+  if (!isCardCellMarked(card, 3, 1)) return false
+  if (!isCardCellMarked(card, 3, 2)) return false
+  if (!isCardCellMarked(card, 3, 3)) return false
+
+  return true
+}
+
+function checkCardFullCard(card: any): boolean {
+  for (let row = 0; row < 5; row++) {
+    for (let col = 0; col < 5; col++) {
+      if (!isCardCellMarked(card, row, col)) {
+        return false
+      }
+    }
+  }
+  return true
+}
+
+function doesCardMatchPatterns(card: any, patterns: string[]): boolean {
+  if (!patterns || patterns.length === 0) {
+    return checkCardFullCard(card)
+  }
+  for (const pattern of patterns) {
+    const pat = pattern.toUpperCase()
+    if (pat === 'LINE' && checkCardLine(card)) return true
+    if (pat === 'COLUMN' && checkCardColumn(card)) return true
+    if (pat === 'DIAGONAL' && checkCardDiagonal(card)) return true
+    if ((pat === 'OUTER_BORDER' || pat === 'JANELÃO' || pat === 'JANELAO') && checkCardOuterBorder(card)) return true
+    if ((pat === 'INNER_BORDER' || pat === 'JANELINHA') && checkCardInnerBorder(card)) return true
+    if ((pat === 'FULL_CARD' || pat === 'FULL_GRID' || pat === 'BINGO_CHEIO') && checkCardFullCard(card)) return true
+  }
+  return false
+}
+
+const activeRoundPatterns = computed(() => {
+  if (!gameStore.eventDetails || !gameStore.eventDetails.rounds) return []
+  const activeRound = gameStore.eventDetails.rounds.find((r: any) => r.status === 'IN_PROGRESS')
+  if (!activeRound || !activeRound.prizes) return []
+  return activeRound.prizes.map((p: any) => p.drawPattern)
+})
+
+const winningCardIndex = computed(() => {
+  const cards = gameStore.ticketMatrix?.cards || []
+  const patterns = activeRoundPatterns.value
+  for (let i = 0; i < cards.length; i++) {
+    if (doesCardMatchPatterns(cards[i], patterns)) {
+      return i
+    }
+  }
+  return null
+})
+
+const isBingoButtonUnlocked = computed(() => winningCardIndex.value !== null)
+
+watch(isBingoButtonUnlocked, (unlocked) => {
+  if (unlocked) {
+    nextTick(() => {
+      if (claimBingoBtnRef.value) {
+        claimBingoBtnRef.value.focus()
+      }
+    })
+  }
 })
 
 // Story 4.3 Mobile Mini-map and Near-win alerts states
@@ -529,8 +875,16 @@ function handleTourCompleted() {
   localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true')
 }
 
-function triggerClaimBingo() {
-  showClaimDialog.value = true
+async function triggerClaimBingo() {
+  const winningIdx = winningCardIndex.value
+  if (winningIdx === null) return
+
+  const success = await gameStore.claimBingo(winningIdx)
+  if (success) {
+    showClaimDialog.value = true
+  } else {
+    alert("Falha ao reivindicar BINGO. Certifique-se de que sua cartela atende às regras.")
+  }
 }
 
 function sendChatMessage() {
@@ -848,10 +1202,16 @@ watch(activeTab, (newTab) => {
 }
 
 .cards-desktop-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  width: 100%;
+  display: none;
+}
+
+@media (min-width: 960px) {
+  .cards-desktop-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    width: 100%;
+  }
 }
 
 /* Mobile Carousel and Dot Indicator */
@@ -926,6 +1286,14 @@ watch(activeTab, (newTab) => {
 .claim-bingo-btn:active {
   transform: translateY(1px);
   box-shadow: 0 4px 15px rgba(255, 214, 0, 0.25);
+}
+
+.claim-bingo-btn:disabled {
+  background: #475569 !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed;
+  box-shadow: none !important;
+  animation: none !important;
 }
 
 .btn-shine {
@@ -1295,5 +1663,49 @@ watch(activeTab, (newTab) => {
   100% {
     transform: scale(1);
   }
+}
+
+/* Victory Celebration styles */
+.victory-trophy-ring {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.1);
+  border: 4px solid #f59e0b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.4);
+  animation: victory-pulse 2s infinite ease-in-out;
+}
+
+.victory-trophy-icon {
+  animation: trophy-wobble 3s infinite ease-in-out;
+}
+
+@keyframes victory-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 45px rgba(245, 158, 11, 0.7);
+    transform: scale(1.05);
+  }
+}
+
+@keyframes trophy-wobble {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}
+
+.hover-scale-up {
+  transition: all 0.2s ease-in-out;
+}
+
+.hover-scale-up:hover {
+  transform: scale(1.05);
+  box-shadow: 0 10px 20px rgba(245, 158, 11, 0.4) !important;
 }
 </style>

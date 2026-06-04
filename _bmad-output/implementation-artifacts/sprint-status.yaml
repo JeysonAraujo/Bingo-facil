@@ -1,5 +1,5 @@
 # generated: 2026-05-25T14:18:00Z
-# last_updated: 2026-05-28T20:15:00Z
+# last_updated: 2026-06-04T02:51:00Z
 # project: bingo-ai
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-05-25T14:18:00Z
-last_updated: 2026-05-29T01:22:00Z
+last_updated: 2026-06-04T02:51:00Z
 project: bingo-ai
 project_key: NOKEY
 tracking_system: file-system
@@ -61,8 +61,8 @@ development_status:
   4-2-automated-marking-cartelao-cards-with-accessibility-checks: done
   4-3-mobile-mini-map-selector-and-glowing-quase-la-alerts: done
   epic-4-retrospective: optional
-  epic-5: backlog
-  5-1-reactive-bingo-unlock-and-server-side-claims-engine: backlog
-  5-2-side-by-side-admin-audit-dashboard-and-celebration-loop: backlog
+  epic-5: done
+  5-1-reactive-bingo-unlock-and-server-side-claims-engine: done
+  5-2-side-by-side-admin-audit-dashboard-and-celebration-loop: done
   epic-5-retrospective: optional
 

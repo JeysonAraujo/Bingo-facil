@@ -371,6 +371,60 @@
           </div>
         </v-card>
 
+        <!-- Fila de Reivindicações (Claims Queue) -->
+        <v-card class="bg-slate-900 border-slate-800 rounded-xl pa-6 shadow-2xl d-flex flex-column mb-6">
+          <div class="d-flex justify-between align-center mb-4">
+            <h2 class="text-h6 font-weight-bold text-white d-flex align-center mb-0">
+              <v-icon icon="mdi-trophy-outline" class="mr-2" color="amber-darken-1"></v-icon>
+              Reivindicações de Bingo
+            </h2>
+            <v-chip color="amber-darken-2" size="small" class="text-slate-950 font-weight-bold">
+              {{ adminStore.claims.filter(c => c.status === 'PENDING').length }} Pendentes
+            </v-chip>
+          </div>
+
+          <!-- Empty Claims State -->
+          <div v-if="adminStore.claims.length === 0" class="d-flex flex-column align-center justify-center py-6 text-center">
+            <v-icon icon="mdi-help-circle-outline" size="36" color="slate-700" class="mb-2"></v-icon>
+            <span class="text-subtitle-2 text-slate-500 font-weight-bold">Nenhuma reivindicação recebida</span>
+          </div>
+
+          <!-- Claims Queue Scroll Area -->
+          <div v-else class="claims-list-area d-flex flex-column gap-2 overflow-y-auto" style="max-height: 250px;">
+            <div
+              v-for="claim in adminStore.claims"
+              :key="claim.claimId"
+              class="d-flex justify-between align-center bg-slate-950 border-slate-800 pa-3 rounded-lg"
+            >
+              <div>
+                <div class="text-caption text-slate-400">Cartela Serial</div>
+                <div class="text-subtitle-2 font-weight-black text-amber-lighten-2">
+                  {{ claim.serial }} (Card {{ claim.cardIndex + 1 }})
+                </div>
+              </div>
+              <div class="d-flex align-center gap-2">
+                <v-chip
+                  v-if="claim.status !== 'PENDING'"
+                  :color="claim.status === 'APPROVED' ? 'success' : 'error'"
+                  size="small"
+                  class="font-weight-black"
+                >
+                  {{ claim.status }}
+                </v-chip>
+                <v-btn
+                  v-if="claim.status === 'PENDING'"
+                  color="indigo-darken-3"
+                  size="small"
+                  class="font-weight-bold rounded-lg text-white"
+                  @click="openAuditModal(claim)"
+                >
+                  Auditar
+                </v-btn>
+              </div>
+            </div>
+          </div>
+        </v-card>
+
         <!-- Chronological Drawings History -->
         <v-card class="bg-slate-900 border-slate-800 rounded-xl pa-6 shadow-2xl flex-grow-1 d-flex flex-column h-console-history">
           <div class="d-flex justify-between align-center mb-4">
@@ -407,6 +461,137 @@
         </v-card>
       </v-col>
     </v-row>
+
+    <!-- Dialog de Auditoria Lado a Lado -->
+    <v-dialog v-model="isAuditModalOpen" max-width="850px" persistent>
+      <v-card class="bg-slate-900 border-slate-800 rounded-xl pa-6 text-white">
+        <div class="d-flex justify-between align-center border-bottom-slate pb-4 mb-6">
+          <h3 class="text-h5 font-weight-bold d-flex align-center">
+            <v-icon icon="mdi-shield-check-outline" color="amber-darken-1" class="mr-2"></v-icon>
+            Auditoria da Reivindicação - Cartela {{ auditingClaim?.serial }}
+          </h3>
+          <v-btn icon="mdi-close" variant="text" color="slate-400" @click="closeAuditModal"></v-btn>
+        </div>
+
+        <v-row>
+          <!-- LEFT SIDE: Player's Card Grid -->
+          <v-col cols="12" md="6" class="d-flex flex-column align-center">
+            <h4 class="text-subtitle-1 font-weight-bold mb-4 text-slate-200">
+              Grade da Cartela (Card {{ auditingClaim ? auditingClaim.cardIndex + 1 : 1 }})
+            </h4>
+            
+            <div class="override-bingo-card">
+              <div class="override-card-header">
+                <span v-for="letter in ['B', 'I', 'N', 'G', 'O']" :key="letter">{{ letter }}</span>
+              </div>
+              <div class="override-card-grid">
+                <div
+                  v-for="cell in auditTicketCells"
+                  :key="`${cell.letter}-${cell.value}`"
+                  class="override-cell"
+                  :class="{
+                    'cell--free': cell.value === 0,
+                    'cell--drawn': isDrawn(cell.value) && cell.value !== 0 && !isAuditMatch(cell.value),
+                    'cell--overridden': isOverridden(cell.value) && cell.value !== 0 && !isAuditMatch(cell.value),
+                    'cell--highlight-match': isAuditMatch(cell.value)
+                  }"
+                >
+                  <span v-if="cell.value === 0" class="free-text-star">
+                    <v-icon size="x-small">mdi-star</v-icon>
+                  </span>
+                  <span v-else class="cell-num">{{ cell.value }}</span>
+
+                  <!-- lock icon if overridden -->
+                  <v-icon
+                    v-if="isOverridden(cell.value) && cell.value !== 0"
+                    size="x-small"
+                    class="cell-override-lock-icon"
+                  >
+                    mdi-lock
+                  </v-icon>
+                </div>
+              </div>
+            </div>
+
+            <!-- Legend/Indicators -->
+            <div class="d-flex gap-4 mt-6 text-caption text-slate-400">
+              <span class="d-flex align-center gap-1">
+                <span class="color-dot bg-green"></span> Sorteada
+              </span>
+              <span class="color-dot bg-purple"></span> Override
+              <span class="d-flex align-center gap-1">
+                <span class="color-dot bg-amber"></span> Match no Bingo!
+              </span>
+            </div>
+          </v-col>
+
+          <!-- RIGHT SIDE: Chronological Drawn Numbers -->
+          <v-col cols="12" md="6" class="d-flex flex-column">
+            <h4 class="text-subtitle-1 font-weight-bold mb-4 text-slate-200">
+              Sorteios Cronológicos
+            </h4>
+
+            <div class="history-scroll-area flex-grow-1 bg-slate-950 border-slate rounded-lg pa-4 overflow-y-auto" style="height: 300px;">
+              <div v-if="adminStore.drawnConsoleNumbers.length === 0" class="text-caption text-slate-500 py-8 text-center">
+                Nenhuma bola sorteada ainda.
+              </div>
+              <div v-else class="d-flex flex-column gap-2">
+                <div
+                  v-for="(ball, idx) in sortedChronologicalDraws"
+                  :key="ball"
+                  class="d-flex justify-between align-center pa-2 rounded-lg"
+                  :class="isBallOnAuditingCard(ball) ? 'bg-amber-darken-4 border-amber' : 'bg-slate-900 border-slate-800'"
+                >
+                  <div class="d-flex align-center gap-2">
+                    <span class="text-caption text-slate-500 font-weight-bold">{{ idx + 1 }}º</span>
+                    <span class="font-weight-black" :class="isBallOnAuditingCard(ball) ? 'text-amber-lighten-3' : 'text-slate-300'">
+                      {{ getLetterForBall(ball) }}-{{ ball }}
+                    </span>
+                  </div>
+                  <v-chip
+                    v-if="isBallOnAuditingCard(ball)"
+                    color="amber"
+                    variant="flat"
+                    size="x-small"
+                    class="font-weight-black text-slate-950"
+                  >
+                    Match
+                  </v-chip>
+                  <span v-else class="text-caption text-slate-600">Não está na cartela</span>
+                </div>
+              </div>
+            </div>
+          </v-col>
+        </v-row>
+
+        <!-- Actions -->
+        <div class="d-flex justify-end gap-3 border-t-slate pt-6 mt-6">
+          <v-btn
+            color="grey-darken-3"
+            class="font-weight-bold text-capitalize rounded-lg px-6"
+            @click="closeAuditModal"
+          >
+            Fechar
+          </v-btn>
+          <v-btn
+            color="red-darken-3"
+            class="font-weight-bold text-capitalize rounded-lg px-6 text-white"
+            :loading="isAuditSubmitting"
+            @click="handleRejectClaim"
+          >
+            Rejeitar Reivindicação
+          </v-btn>
+          <v-btn
+            color="emerald-darken-2"
+            class="font-weight-bold text-capitalize rounded-lg px-6 text-white bg-emerald-darken-2"
+            :loading="isAuditSubmitting"
+            @click="handleApproveClaim"
+          >
+            Aprovar Vencedor!
+          </v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -483,6 +668,81 @@ const ticketCells = computed<Cell[]>(() => {
   return cells
 })
 
+// Audit / claims reactive state
+const isAuditModalOpen = ref(false)
+const auditingClaim = ref<any | null>(null)
+const isAuditSubmitting = ref(false)
+
+const openAuditModal = async (claim: any) => {
+  auditingClaim.value = claim
+  isAuditModalOpen.value = true
+  searchError.value = ''
+  await adminStore.searchTicketBySerial(claim.serial)
+}
+
+const closeAuditModal = () => {
+  isAuditModalOpen.value = false
+  auditingClaim.value = null
+}
+
+const handleApproveClaim = async () => {
+  if (!auditingClaim.value) return
+  isAuditSubmitting.value = true
+  try {
+    const success = await adminStore.approveClaim(auditingClaim.value.claimId)
+    if (success) {
+      closeAuditModal()
+    }
+  } finally {
+    isAuditSubmitting.value = false
+  }
+}
+
+const handleRejectClaim = async () => {
+  if (!auditingClaim.value) return
+  isAuditSubmitting.value = true
+  try {
+    const success = await adminStore.rejectClaim(auditingClaim.value.claimId)
+    if (success) {
+      closeAuditModal()
+    }
+  } finally {
+    isAuditSubmitting.value = false
+  }
+}
+
+const sortedChronologicalDraws = computed(() => {
+  return adminStore.drawnConsoleNumbers
+})
+
+const auditTicketCells = computed<Cell[]>(() => {
+  const ticket = adminStore.searchedTicket
+  const claim = auditingClaim.value
+  if (!ticket || !ticket.matrix || !ticket.matrix.cards || !claim) {
+    return []
+  }
+  const cardIndex = claim.cardIndex ?? 0
+  const card = ticket.matrix.cards[cardIndex]
+  if (!card) return []
+  const cells: Cell[] = []
+  for (let row = 0; row < 5; row++) {
+    cells.push({ letter: 'B', value: card.b[row] })
+    cells.push({ letter: 'I', value: card.i[row] })
+    cells.push({ letter: 'N', value: row === 2 ? 0 : card.n[row] })
+    cells.push({ letter: 'G', value: card.g[row] })
+    cells.push({ letter: 'O', value: card.o[row] })
+  }
+  return cells
+})
+
+const isBallOnAuditingCard = (ball: number) => {
+  return auditTicketCells.value.some(cell => cell.value === ball && ball !== 0)
+}
+
+const isAuditMatch = (cellValue: number) => {
+  return cellValue !== 0 && isDrawn(cellValue) && isBallOnAuditingCard(cellValue)
+}
+
 // Mounted lifecycle
 onMounted(async () => {
   // Guard eventId
@@ -494,6 +754,15 @@ onMounted(async () => {
   // Load backend state
   await adminStore.fetchConsoleEventDetails(eventId)
   await adminStore.fetchConsoleDrawnNumbers(eventId)
+
+  // Fetch initial claims for the round
+  const event = adminStore.activeConsoleEvent
+  if (event && event.rounds && event.rounds.length > 0) {
+    const activeRound = event.rounds.find(r => r.status === 'IN_PROGRESS') || event.rounds[0]
+    if (activeRound) {
+      await adminStore.fetchClaims(activeRound.id)
+    }
+  }
 
   // Establish WebSockets
   adminStore.connectAdminWebSocket(eventId)
@@ -1120,4 +1389,24 @@ watch(
 
 .bg-green { background-color: #2e7d32; }
 .bg-purple { background-color: #a855f7; }
+.bg-amber { background-color: #f59e0b; }
+
+.cell--highlight-match {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border: 2px solid #f59e0b !important;
+  color: #f59e0b !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+.border-amber {
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+.bg-amber-darken-4 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+}
+
+.bg-emerald-darken-2 {
+  background-color: #059669 !important;
+}
 </style>
