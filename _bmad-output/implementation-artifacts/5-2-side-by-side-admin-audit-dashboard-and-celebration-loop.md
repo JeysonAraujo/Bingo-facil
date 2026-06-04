@@ -42,6 +42,9 @@ In the side-by-side modal, matching numbers are highlighted using a distinct amb
 **Web Audio API Fallback**:
 If browser autoplay policies block the victory sound file (`/victory.mp3`), a synthesized musical chord (C5 - E5 - G5 - C6) is automatically generated using browser Web Audio API `OscillatorNode` oscillators, ensuring the audio feedback never completely fails.
 
+**Transactional Lazy Loading**:
+Annotated `ClaimController` class with `@Transactional` to avoid `LazyInitializationException` when lazy-loaded properties like `ticket` and `round` are accessed in controllers outside transactional context.
+
 ## File List
 
 ### Backend — Modified Files
