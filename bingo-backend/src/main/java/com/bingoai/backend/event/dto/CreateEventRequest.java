@@ -17,6 +17,8 @@ public class CreateEventRequest {
     @NotEmpty(message = "Event must contain at least one round")
     private List<CreateRoundRequest> rounds;
 
+    private String youtubeUrl;
+
     public CreateEventRequest() {
     }
 
@@ -42,5 +44,13 @@ public class CreateEventRequest {
 
     public void setRounds(List<CreateRoundRequest> rounds) {
         this.rounds = rounds;
+    }
+
+    public String getYoutubeUrl() {
+        return youtubeUrl;
+    }
+
+    public void setYoutubeUrl(String youtubeUrl) {
+        this.youtubeUrl = youtubeUrl;
     }
 }

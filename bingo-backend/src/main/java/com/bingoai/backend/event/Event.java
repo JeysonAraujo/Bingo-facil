@@ -26,6 +26,15 @@ public class Event {
     @Column(name = "stream_delay_seconds", nullable = false)
     private Integer streamDelaySeconds = 0;
 
+    @Column(name = "youtube_url")
+    private String youtubeUrl;
+
+    @Column(nullable = false)
+    private String status = "AGUARDANDO";
+
+    @Column(name = "header_image_url")
+    private String headerImageUrl;
+
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Round> rounds = new ArrayList<>();
 
@@ -84,11 +93,35 @@ public class Event {
         this.streamDelaySeconds = streamDelaySeconds;
     }
 
+    public String getYoutubeUrl() {
+        return youtubeUrl;
+    }
+
+    public void setYoutubeUrl(String youtubeUrl) {
+        this.youtubeUrl = youtubeUrl;
+    }
+
     public List<Round> getRounds() {
         return rounds;
     }
 
     public void setRounds(List<Round> rounds) {
         this.rounds = rounds;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getHeaderImageUrl() {
+        return headerImageUrl;
+    }
+
+    public void setHeaderImageUrl(String headerImageUrl) {
+        this.headerImageUrl = headerImageUrl;
     }
 }

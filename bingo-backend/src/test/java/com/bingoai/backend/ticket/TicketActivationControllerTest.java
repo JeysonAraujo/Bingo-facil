@@ -101,15 +101,20 @@ class TicketActivationControllerTest {
 
     @Test
     @SuppressWarnings("null")
-    void activateTicket_withAlreadyActivatedSerial_returns409() throws Exception {
+    void activateTicket_withAlreadyActivatedSerial_returnsSuccessAndReusesToken() throws Exception {
         Map<String, String> body = Map.of("serial", activatedSerial);
+
+        // Fetch original session token of activated ticket to compare
+        Ticket original = ticketRepository.findBySerial(activatedSerial).orElseThrow();
+        String originalToken = original.getSessionToken();
 
         mockMvc.perform(post("/api/v1/tickets/activate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.message").value("Esta cartela já foi ativada."));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.serial").value(activatedSerial))
+                .andExpect(jsonPath("$.data.sessionToken").value(originalToken));
     }
 
     @Test

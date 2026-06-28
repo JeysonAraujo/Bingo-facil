@@ -78,4 +78,8 @@ public class TicketService {
     public Optional<String> getEventTitle(@NonNull UUID eventId) {
         return eventRepository.findById(eventId).map(Event::getTitle);
     }
+
+    public Optional<Event> getEvent(@NonNull UUID eventId) {
+        return eventRepository.findById(eventId);
+    }
 }

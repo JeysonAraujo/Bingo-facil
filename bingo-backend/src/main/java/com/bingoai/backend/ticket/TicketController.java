@@ -1,5 +1,6 @@
 package com.bingoai.backend.ticket;
 
+import com.bingoai.backend.event.Event;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -42,16 +43,21 @@ public class TicketController {
     }
 
     @GetMapping("/pdf")
-    public ResponseEntity<byte[]> downloadTicketsPdf(@PathVariable UUID eventId) {
-        String eventTitle = ticketService.getEventTitle(eventId)
+    public ResponseEntity<byte[]> downloadTicketsPdf(
+            @PathVariable UUID eventId,
+            @RequestParam(required = false) String customHeader,
+            @RequestParam(required = false) String customFooter,
+            @RequestParam(defaultValue = "false") boolean hasCutStrip) {
+        Event event = ticketService.getEvent(eventId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found: " + eventId));
+        String eventTitle = event.getTitle();
 
         List<Ticket> tickets = ticketService.getTicketsForEvent(eventId);
         if (tickets.isEmpty()) {
             return ResponseEntity.noContent().build();
         }
 
-        byte[] pdfBytes = pdfGenerator.generateTicketsPdf(tickets, eventTitle);
+        byte[] pdfBytes = pdfGenerator.generateTicketsPdf(tickets, eventTitle, customHeader, customFooter, hasCutStrip, event.getHeaderImageUrl());
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);

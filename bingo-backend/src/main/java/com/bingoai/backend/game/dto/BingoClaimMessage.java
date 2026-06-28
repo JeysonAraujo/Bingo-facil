@@ -28,9 +28,13 @@ public class BingoClaimMessage {
     }
 
     public BingoClaimMessage(String ticketId, String sessionToken, Integer cardIndex, String claimId, String status, String serial) {
+        this(ticketId, sessionToken, cardIndex, claimId, status, serial, false);
+    }
+
+    public BingoClaimMessage(String ticketId, String sessionToken, Integer cardIndex, String claimId, String status, String serial, boolean automatic) {
         this.eventType = "BINGO_CLAIM";
         this.timestamp = Instant.now().toString();
-        this.payload = new Payload(ticketId, sessionToken, cardIndex, claimId, status, serial);
+        this.payload = new Payload(ticketId, sessionToken, cardIndex, claimId, status, serial, automatic);
     }
 
     public String getEventType() {
@@ -64,17 +68,23 @@ public class BingoClaimMessage {
         private String claimId;
         private String status;
         private String serial;
+        private boolean automatic;
 
         public Payload() {
         }
 
         public Payload(String ticketId, String sessionToken, Integer cardIndex, String claimId, String status, String serial) {
+            this(ticketId, sessionToken, cardIndex, claimId, status, serial, false);
+        }
+
+        public Payload(String ticketId, String sessionToken, Integer cardIndex, String claimId, String status, String serial, boolean automatic) {
             this.ticketId = ticketId;
             this.sessionToken = sessionToken;
             this.cardIndex = cardIndex;
             this.claimId = claimId;
             this.status = status;
             this.serial = serial;
+            this.automatic = automatic;
         }
 
         public String getTicketId() {
@@ -123,6 +133,14 @@ public class BingoClaimMessage {
 
         public void setSerial(String serial) {
             this.serial = serial;
+        }
+
+        public boolean isAutomatic() {
+            return automatic;
+        }
+
+        public void setAutomatic(boolean automatic) {
+            this.automatic = automatic;
         }
     }
 }

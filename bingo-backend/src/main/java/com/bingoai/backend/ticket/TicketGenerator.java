@@ -12,13 +12,17 @@ import java.util.stream.IntStream;
 @Component
 public class TicketGenerator {
 
-    private static final String ALPHANUMERIC_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed ambiguous I, O, 1, 0
+    private static final String LETTERS_POOL = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private static final String DIGITS_POOL = "0123456789";
     private final SecureRandom random = new SecureRandom();
 
     public String generateSerial() {
         StringBuilder sb = new StringBuilder(6);
-        for (int i = 0; i < 6; i++) {
-            sb.append(ALPHANUMERIC_CHARS.charAt(random.nextInt(ALPHANUMERIC_CHARS.length())));
+        for (int i = 0; i < 2; i++) {
+            sb.append(LETTERS_POOL.charAt(random.nextInt(LETTERS_POOL.length())));
+        }
+        for (int i = 0; i < 4; i++) {
+            sb.append(DIGITS_POOL.charAt(random.nextInt(DIGITS_POOL.length())));
         }
         return sb.toString();
     }

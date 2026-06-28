@@ -13,7 +13,7 @@ class TicketGeneratorTest {
         String serial = generator.generateSerial();
         assertNotNull(serial);
         assertEquals(6, serial.length());
-        assertTrue(serial.matches("^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$"));
+        assertTrue(serial.matches("^[ABCDEFGHJKLMNPQRSTUVWXYZ]{2}[0-9]{4}$"));
     }
 
     @Test

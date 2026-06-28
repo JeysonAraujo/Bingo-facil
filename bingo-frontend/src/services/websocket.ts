@@ -73,7 +73,10 @@ export function createWebSocketClient(
   onAnnouncement?: (announcement: WsAnnouncementPayload) => void,
   onTicketOverride?: (override: WsTicketOverridePayload) => void,
   onDelayChange?: (delaySeconds: number) => void,
-  onClaim?: (claim: any) => void
+  onClaim?: (claim: any) => void,
+  onChatMessage?: (chat: any) => void,
+  onRoundStatusChange?: (round: any) => void,
+  onViewersChange?: (viewers: number) => void
 ): Client {
   const client = new Client({
     // SockJS factory: provides HTTP long-polling fallback automatically
@@ -159,6 +162,42 @@ export function createWebSocketClient(
             onClaim(envelope)
           } catch (e) {
             console.error('[WebSocket] Failed to parse claims message:', e)
+          }
+        })
+      }
+
+      // Subscribe to chat topic if callback is provided
+      if (onChatMessage) {
+        client.subscribe(`/topic/events/${eventId}/chat`, (msg: IMessage) => {
+          try {
+            const envelope = JSON.parse(msg.body)
+            onChatMessage(envelope)
+          } catch (e) {
+            console.error('[WebSocket] Failed to parse chat message:', e)
+          }
+        })
+      }
+
+      // Subscribe to rounds topic if callback is provided
+      if (onRoundStatusChange) {
+        client.subscribe(`/topic/events/${eventId}/rounds`, (msg: IMessage) => {
+          try {
+            const envelope = JSON.parse(msg.body)
+            onRoundStatusChange(envelope)
+          } catch (e) {
+            console.error('[WebSocket] Failed to parse round status message:', e)
+          }
+        })
+      }
+
+      // Subscribe to viewers topic if callback is provided
+      if (onViewersChange) {
+        client.subscribe(`/topic/events/${eventId}/viewers`, (msg: IMessage) => {
+          try {
+            const envelope = JSON.parse(msg.body)
+            onViewersChange(envelope.viewerCount)
+          } catch (e) {
+            console.error('[WebSocket] Failed to parse viewers message:', e)
           }
         })
       }

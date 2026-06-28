@@ -371,6 +371,203 @@
           </div>
         </v-card>
 
+        <!-- GERENCIAMENTO DE RODADAS -->
+        <v-card class="bg-slate-900 border-slate-800 rounded-xl pa-6 shadow-2xl">
+          <h2 class="text-h6 font-weight-bold text-white mb-4 d-flex align-center">
+            <v-icon icon="mdi-format-list-numbered" class="mr-2" color="indigo-lighten-2"></v-icon>
+            Controle de Rodadas
+          </h2>
+          
+          <div v-if="!adminStore.activeConsoleEvent?.rounds || adminStore.activeConsoleEvent.rounds.length === 0" class="text-caption text-slate-500 py-4 text-center">
+            Nenhuma rodada cadastrada neste evento.
+          </div>
+          <div v-else class="d-flex flex-column gap-3">
+            <div
+              v-for="round in adminStore.activeConsoleEvent.rounds"
+              :key="round.id"
+              class="d-flex flex-column pa-3 rounded-lg bg-slate-950 border-slate-800"
+            >
+              <div class="d-flex justify-between align-center mb-2">
+                <span class="text-subtitle-2 font-weight-bold text-white">
+                  Rodada #{{ round.roundNumber }}
+                </span>
+                <v-chip
+                  :color="round.status === 'IN_PROGRESS' ? 'success' : round.status === 'FINISHED' ? 'grey-darken-1' : 'amber'"
+                  size="x-small"
+                  class="font-weight-black text-capitalize"
+                >
+                  {{ round.status }}
+                </v-chip>
+              </div>
+              
+              <div class="d-flex justify-end gap-2 align-center">
+                <v-btn
+                  v-if="round.status === 'PENDING' || round.status === 'FINISHED'"
+                  color="success"
+                  size="x-small"
+                  variant="flat"
+                  class="font-weight-bold text-white text-capitalize"
+                  @click="handleStartRound(round.id)"
+                >
+                  Iniciar
+                </v-btn>
+                <template v-if="round.status === 'IN_PROGRESS'">
+                  <v-btn
+                    color="amber-darken-2"
+                    size="x-small"
+                    variant="flat"
+                    class="font-weight-bold text-slate-950 text-capitalize"
+                    @click="handleFinishRound(round.id)"
+                  >
+                    Finalizar
+                  </v-btn>
+                  <v-btn
+                    color="red-darken-3"
+                    size="x-small"
+                    variant="outlined"
+                    class="font-weight-bold text-white text-capitalize"
+                    @click="handleCancelRound(round.id)"
+                  >
+                    Cancelar
+                  </v-btn>
+                </template>
+                <v-btn
+                  v-if="round.status === 'FINISHED'"
+                  color="red-darken-3"
+                  size="x-small"
+                  variant="outlined"
+                  class="font-weight-bold text-white text-capitalize"
+                  @click="handleCancelRound(round.id)"
+                >
+                  Resetar
+                </v-btn>
+                <v-btn
+                  icon="mdi-delete"
+                  variant="text"
+                  color="red-darken-1"
+                  size="x-small"
+                  class="ml-2"
+                  @click="handleDeleteRound(round.id)"
+                  aria-label="Excluir Rodada"
+                ></v-btn>
+              </div>
+            </div>
+          </div>
+        </v-card>
+
+        <!-- GERAR CARTELAS -->
+        <v-card class="bg-slate-900 border-slate-800 rounded-xl pa-6 shadow-2xl mb-6">
+          <h2 class="text-h6 font-weight-bold text-white mb-4 d-flex align-center">
+            <v-icon icon="mdi-ticket-confirmation" class="mr-2" color="amber-darken-1"></v-icon>
+            Gerar Cartelas para o Jogo
+          </h2>
+          <p class="text-caption text-slate-400 mb-4">
+            Gere um lote de cartelas numeradas (contendo 4 cartões cada) para que os jogadores possam se inscrever.
+          </p>
+          <v-text-field
+            v-model="ticketsQty"
+            type="number"
+            label="Quantidade de Cartelas"
+            variant="outlined"
+            density="compact"
+            bg-color="slate-950"
+            color="amber-darken-1"
+            class="rounded-lg text-white mb-3"
+            hide-details
+          ></v-text-field>
+          <v-btn
+            color="amber-darken-3"
+            class="font-weight-bold rounded-lg text-white w-full"
+            prepend-icon="mdi-plus-box"
+            size="large"
+            :loading="adminStore.isLoading"
+            @click="handleGenerateTickets"
+          >
+            Gerar Lote de Cartelas
+          </v-btn>
+        </v-card>
+
+        <!-- EXPORTAÇÃO DE CARTELAS (PDF CUSTOMIZADO) -->
+        <v-card class="bg-slate-900 border-slate-800 rounded-xl pa-6 shadow-2xl">
+          <h2 class="text-h6 font-weight-bold text-white mb-4 d-flex align-center">
+            <v-icon icon="mdi-file-pdf-box" class="mr-2" color="red-lighten-2"></v-icon>
+            Exportar Cartelas (PDF)
+          </h2>
+          <p class="text-caption text-slate-400 mb-4">
+            Gere o arquivo PDF das cartelas com cabeçalho/rodapé customizados e canhoto de controle administrativo destacado por serrilha.
+          </p>
+          
+          <v-text-field
+            v-model="pdfHeader"
+            label="Cabeçalho Customizado (Texto)"
+            placeholder="Ex: Igreja Matriz - Show de Prêmios"
+            variant="outlined"
+            density="compact"
+            bg-color="slate-950"
+            color="amber-darken-1"
+            class="rounded-lg text-white mb-3"
+            hide-details
+          ></v-text-field>
+
+          <v-text-field
+            v-model="pdfFooter"
+            label="Rodapé / Texto Convidativo"
+            placeholder="Ex: Obrigado pela participação! Boa sorte!"
+            variant="outlined"
+            density="compact"
+            bg-color="slate-950"
+            color="amber-darken-1"
+            class="rounded-lg text-white mb-3"
+            hide-details
+          ></v-text-field>
+
+          <!-- Upload Image for Header -->
+          <div class="mb-3">
+            <label class="text-caption text-slate-400 d-block mb-1 font-weight-bold">
+              Imagem do Cabeçalho (Máx. 2MB) - Substitui Cabeçalho de Texto
+            </label>
+            <div v-if="adminStore.activeConsoleEvent?.headerImageUrl" class="d-flex align-center bg-slate-950 pa-2 rounded-lg mb-2">
+              <v-icon icon="mdi-image-outline" class="mr-2" color="success"></v-icon>
+              <span class="text-caption text-slate-300 text-truncate flex-grow-1">
+                Imagem enviada salva
+              </span>
+              <v-icon icon="mdi-check-circle" color="success" size="18"></v-icon>
+            </div>
+            <v-file-input
+              label="Selecionar Imagem"
+              variant="outlined"
+              density="compact"
+              accept="image/*"
+              bg-color="slate-950"
+              color="amber-darken-1"
+              hide-details
+              prepend-icon=""
+              prepend-inner-icon="mdi-upload"
+              class="rounded-lg text-white"
+              @update:model-value="handleHeaderImageUpload"
+            ></v-file-input>
+          </div>
+
+          <v-checkbox
+            v-model="pdfCutStrip"
+            label="Canhoto com Serrilha"
+            color="amber-darken-1"
+            hide-details
+            class="text-white text-caption mb-4"
+          ></v-checkbox>
+
+          <v-btn
+            color="red-darken-3"
+            class="font-weight-bold rounded-lg text-white w-full"
+            prepend-icon="mdi-download"
+            size="large"
+            :loading="adminStore.isLoading"
+            @click="handleDownloadPdf"
+          >
+            Baixar PDF
+          </v-btn>
+        </v-card>
+
         <!-- Fila de Reivindicações (Claims Queue) -->
         <v-card class="bg-slate-900 border-slate-800 rounded-xl pa-6 shadow-2xl d-flex flex-column mb-6">
           <div class="d-flex justify-between align-center mb-4">
@@ -397,7 +594,12 @@
               class="d-flex justify-between align-center bg-slate-950 border-slate-800 pa-3 rounded-lg"
             >
               <div>
-                <div class="text-caption text-slate-400">Cartela Serial</div>
+                <div class="text-caption text-slate-400 d-flex align-center gap-2">
+                  Cartela Serial
+                  <v-chip v-if="claim.automatic" color="amber-darken-4" size="x-small" class="font-weight-black px-1 py-0 height-auto text-white">
+                    Auto
+                  </v-chip>
+                </div>
                 <div class="text-subtitle-2 font-weight-black text-amber-lighten-2">
                   {{ claim.serial }} (Card {{ claim.cardIndex + 1 }})
                 </div>
@@ -626,6 +828,78 @@ const localAnnouncements = ref<LocalAnnouncement[]>([])
 const searchSerial = ref('')
 const searchError = ref('')
 
+const pdfHeader = ref('')
+const pdfFooter = ref('')
+const pdfCutStrip = ref(false)
+const ticketsQty = ref(100)
+
+const handleGenerateTickets = async () => {
+  if (ticketsQty.value > 0 && ticketsQty.value <= 5000) {
+    const success = await adminStore.generateTickets(eventId, ticketsQty.value)
+    if (success) {
+      alert(`${ticketsQty.value} cartelas geradas com sucesso!`)
+    }
+  } else {
+    alert('Quantidade inválida (entre 1 e 5000).')
+  }
+}
+
+const handleHeaderImageUpload = async (val: any) => {
+  const file = Array.isArray(val) ? val[0] : val
+  if (!file) return
+  if (file.size > 2 * 1024 * 1024) {
+    alert('A imagem do cabeçalho não pode exceder 2MB.')
+    return
+  }
+  const success = await adminStore.uploadHeaderImage(eventId, file)
+  if (success) {
+    alert('Imagem do cabeçalho atualizada com sucesso!')
+  }
+}
+
+const handleStartRound = async (roundId: string) => {
+  const confirm = window.confirm('Deseja iniciar esta rodada? Isso marcará outras rodadas como finalizadas e apagará os números sorteados da rodada atual.')
+  if (confirm) {
+    const success = await adminStore.startRound(roundId)
+    if (success) {
+      await adminStore.fetchConsoleEventDetails(eventId)
+      adminStore.drawnConsoleNumbers = []
+    }
+  }
+}
+
+const handleFinishRound = async (roundId: string) => {
+  const success = await adminStore.finishRound(roundId)
+  if (success) {
+    await adminStore.fetchConsoleEventDetails(eventId)
+  }
+}
+
+const handleCancelRound = async (roundId: string) => {
+  const confirm = window.confirm('Deseja cancelar esta rodada? Isso apagará todos os números sorteados nela e alterará seu status para PENDING.')
+  if (confirm) {
+    const success = await adminStore.cancelRound(roundId)
+    if (success) {
+      await adminStore.fetchConsoleEventDetails(eventId)
+      adminStore.drawnConsoleNumbers = []
+    }
+  }
+}
+
+const handleDeleteRound = async (roundId: string) => {
+  const confirm = window.confirm('Deseja realmente excluir esta rodada do banco de dados?')
+  if (confirm) {
+    const success = await adminStore.deleteRound(roundId)
+    if (success) {
+      await adminStore.fetchConsoleEventDetails(eventId)
+    }
+  }
+}
+
+const handleDownloadPdf = async () => {
+  await adminStore.downloadTicketsPdf(eventId, pdfHeader.value, pdfFooter.value, pdfCutStrip.value)
+}
+
 // Computed properties
 const eventTitle = computed(() => adminStore.activeConsoleEvent?.title || 'Carregando…')
 const isConnected = computed(() => !!adminStore._wsAdminClient?.connected)
@@ -721,7 +995,7 @@ const auditTicketCells = computed<Cell[]>(() => {
   if (!ticket || !ticket.matrix || !ticket.matrix.cards || !claim) {
     return []
   }
-  const cardIndex = claim.cardIndex ?? 0
+  const cardIndex = Number(claim.cardIndex) || 0
   const card = ticket.matrix.cards[cardIndex]
   if (!card) return []
   const cells: Cell[] = []

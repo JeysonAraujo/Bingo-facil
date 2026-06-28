@@ -6,8 +6,12 @@ spring:
   threads:
     virtual:
       enabled: true
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB
   datasource:
-    url: jdbc:postgresql://localhost:5432/bingodb
+    url: jdbc:postgresql://localhost:5433/bingodb?stringtype=unspecified
     username: bingo_user
     password: bingo_password
     driver-class-name: org.postgresql.Driver

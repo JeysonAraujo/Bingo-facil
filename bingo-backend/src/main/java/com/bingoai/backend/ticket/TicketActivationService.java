@@ -18,18 +18,16 @@ public class TicketActivationService {
 
     @Transactional
     public TicketActivationResponseDto activateTicket(String serial) {
-        Ticket ticket = ticketRepository.findBySerial(serial.toUpperCase())
+        Ticket ticket = ticketRepository.findWithLockBySerial(serial.toUpperCase())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Cartela não encontrada."));
 
-        if (ticket.isActivated()) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT, "Esta cartela já foi ativada.");
+        String sessionToken = ticket.getSessionToken();
+        if (sessionToken == null || sessionToken.isEmpty()) {
+            sessionToken = UUID.randomUUID().toString();
+            ticket.setSessionToken(sessionToken);
         }
-
-        String sessionToken = UUID.randomUUID().toString();
         ticket.setActivated(true);
-        ticket.setSessionToken(sessionToken);
         ticketRepository.save(ticket);
 
         return new TicketActivationResponseDto(

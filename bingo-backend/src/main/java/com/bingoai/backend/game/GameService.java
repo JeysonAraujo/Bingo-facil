@@ -6,6 +6,8 @@ import com.bingoai.backend.event.Round;
 import com.bingoai.backend.event.RoundRepository;
 import com.bingoai.backend.game.dto.DrawBallMessage;
 import com.bingoai.backend.game.dto.StreamDelayMessage;
+import com.bingoai.backend.ticket.TicketRepository;
+import com.bingoai.backend.game.WinVerificationEngine;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,15 +24,24 @@ public class GameService {
     private final RoundRepository roundRepository;
     private final DrawRepository drawRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final TicketRepository ticketRepository;
+    private final ClaimRepository claimRepository;
+    private final WinVerificationEngine winVerificationEngine;
 
     public GameService(EventRepository eventRepository,
                        RoundRepository roundRepository,
                        DrawRepository drawRepository,
-                       SimpMessagingTemplate messagingTemplate) {
+                       SimpMessagingTemplate messagingTemplate,
+                       TicketRepository ticketRepository,
+                       ClaimRepository claimRepository,
+                       WinVerificationEngine winVerificationEngine) {
         this.eventRepository = eventRepository;
         this.roundRepository = roundRepository;
         this.drawRepository = drawRepository;
         this.messagingTemplate = messagingTemplate;
+        this.ticketRepository = ticketRepository;
+        this.claimRepository = claimRepository;
+        this.winVerificationEngine = winVerificationEngine;
     }
 
     /**
@@ -81,7 +92,64 @@ public class GameService {
         Draw draw = new Draw(round, ballNumber, sequence);
         Draw saved = drawRepository.save(draw);
 
+        try {
+            checkAndGenerateAutoClaims(eventId, round);
+        } catch (Exception e) {
+            System.err.println("[AutoClaim] Error running auto claim verification: " + e.getMessage());
+            e.printStackTrace();
+        }
+
         return new DrawBallMessage(saved.getBallNumber(), saved.getDrawnSequence(), saved.getCreatedAt().toInstant());
+    }
+
+    private void checkAndGenerateAutoClaims(UUID eventId, Round round) {
+        List<DrawBallMessage> draws = getRoundDraws(eventId);
+        java.util.Set<Integer> marked = draws.stream()
+                .map(draw -> draw.getPayload().getBallNumber())
+                .collect(Collectors.toSet());
+
+        List<String> patterns = round.getPrizes().stream()
+                .map(com.bingoai.backend.event.Prize::getDrawPattern)
+                .collect(Collectors.toList());
+        if (patterns.isEmpty()) {
+            patterns.add("FULL_CARD");
+        }
+
+        List<com.bingoai.backend.ticket.Ticket> activeTickets = ticketRepository.findByEventIdAndActivatedTrue(eventId);
+
+        for (com.bingoai.backend.ticket.Ticket ticket : activeTickets) {
+            java.util.Set<Integer> ticketMarked = new java.util.HashSet<>(marked);
+            if (ticket.getMarkedOverrides() != null) {
+                ticketMarked.addAll(ticket.getMarkedOverrides());
+            }
+
+            List<com.bingoai.backend.ticket.CardMatrix> cards = ticket.getMatrix().getCards();
+            for (int cardIndex = 0; cardIndex < cards.size(); cardIndex++) {
+                boolean claimExists = claimRepository.existsByRoundIdAndTicketIdAndCardIndex(round.getId(), ticket.getId(), cardIndex);
+                if (!claimExists) {
+                    com.bingoai.backend.ticket.CardMatrix card = cards.get(cardIndex);
+                    boolean isWinner = winVerificationEngine.verifyWin(card, ticketMarked, patterns);
+                    if (isWinner) {
+                        Claim claim = new Claim(ticket, round, cardIndex, true);
+                        Claim savedClaim = claimRepository.save(claim);
+
+                        com.bingoai.backend.game.dto.BingoClaimMessage claimMessage = new com.bingoai.backend.game.dto.BingoClaimMessage(
+                                ticket.getId().toString(),
+                                ticket.getSessionToken() != null ? ticket.getSessionToken() : "",
+                                cardIndex,
+                                savedClaim.getId().toString(),
+                                savedClaim.getStatus(),
+                                ticket.getSerial(),
+                                true
+                        );
+                        messagingTemplate.convertAndSend(
+                                "/topic/events/" + eventId + "/claims",
+                                claimMessage
+                        );
+                    }
+                }
+            }
+        }
     }
 
     /**
