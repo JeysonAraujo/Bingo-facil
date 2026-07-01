@@ -75,7 +75,7 @@ export const useAdminStore = defineStore('admin', {
 
     async downloadTicketsPdf(
       eventId: string,
-      customHeader?: string,
+      prizes?: string,
       customFooter?: string,
       hasCutStrip: boolean = false
     ): Promise<void> {
@@ -83,7 +83,7 @@ export const useAdminStore = defineStore('admin', {
       this.error = null
       try {
         const params = new URLSearchParams()
-        if (customHeader) params.append('customHeader', customHeader)
+        if (prizes) params.append('prizes', prizes)
         if (customFooter) params.append('customFooter', customFooter)
         if (hasCutStrip) params.append('hasCutStrip', 'true')
         const queryString = params.toString() ? `?${params.toString()}` : ''
@@ -393,6 +393,60 @@ export const useAdminStore = defineStore('admin', {
       } catch (err) {
         console.error('[AdminStore] Failed to delete round:', err)
         return false
+      }
+    },
+
+    async createRound(eventId: string, payload: any): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.post<ApiResponse<EventResponseDto>>(`/events/${eventId}/rounds`, payload)
+        if (response.data.success) {
+          const index = this.events.findIndex(e => e.id === eventId)
+          if (index !== -1) {
+            this.events[index] = response.data.data
+          }
+          if (this.activeConsoleEvent && this.activeConsoleEvent.id === eventId) {
+            this.activeConsoleEvent = response.data.data
+          }
+          return true
+        } else {
+          this.error = response.data.error?.message || 'Falha ao criar rodada'
+          return false
+        }
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao criar rodada'
+        return false
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async updateRound(eventId: string, roundId: string, payload: any): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.put<ApiResponse<EventResponseDto>>(`/events/${eventId}/rounds/${roundId}`, payload)
+        if (response.data.success) {
+          const index = this.events.findIndex(e => e.id === eventId)
+          if (index !== -1) {
+            this.events[index] = response.data.data
+          }
+          if (this.activeConsoleEvent && this.activeConsoleEvent.id === eventId) {
+            this.activeConsoleEvent = response.data.data
+          }
+          return true
+        } else {
+          this.error = response.data.error?.message || 'Falha ao atualizar rodada'
+          return false
+        }
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao atualizar rodada'
+        return false
+      } finally {
+        this.isLoading = false
       }
     },
 

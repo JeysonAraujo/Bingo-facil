@@ -95,6 +95,54 @@ public class EventService {
     }
 
     @Transactional
+    public EventResponseDto addRoundToEvent(UUID eventId, CreateRoundRequest request) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
+        
+        Round round = new Round();
+        round.setRoundNumber(request.getRoundNumber());
+        if (request.getPrizes() != null) {
+            for (CreatePrizeRequest prizeReq : request.getPrizes()) {
+                Prize prize = new Prize();
+                prize.setName(prizeReq.getName());
+                prize.setType(prizeReq.getType());
+                prize.setDrawPattern(prizeReq.getDrawPattern());
+                round.addPrize(prize);
+            }
+        }
+        event.addRound(round);
+        Event saved = eventRepository.save(event);
+        return mapToResponseDto(saved);
+    }
+
+    @Transactional
+    public EventResponseDto updateRound(UUID eventId, UUID roundId, CreateRoundRequest request) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
+        
+        Round targetRound = event.getRounds().stream()
+                .filter(r -> r.getId().equals(roundId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Round not found with ID: " + roundId));
+
+        targetRound.setRoundNumber(request.getRoundNumber());
+        
+        targetRound.getPrizes().clear();
+        if (request.getPrizes() != null) {
+            for (CreatePrizeRequest prizeReq : request.getPrizes()) {
+                Prize prize = new Prize();
+                prize.setName(prizeReq.getName());
+                prize.setType(prizeReq.getType());
+                prize.setDrawPattern(prizeReq.getDrawPattern());
+                targetRound.addPrize(prize);
+            }
+        }
+        
+        Event saved = eventRepository.save(event);
+        return mapToResponseDto(saved);
+    }
+
+    @Transactional
     public EventResponseDto updateEventStatus(UUID id, String status) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + id));

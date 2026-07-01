@@ -376,6 +376,7 @@
           <h2 class="text-h6 font-weight-bold text-white mb-4 d-flex align-center">
             <v-icon icon="mdi-format-list-numbered" class="mr-2" color="indigo-lighten-2"></v-icon>
             Controle de Rodadas
+            <v-btn icon="mdi-plus" size="small" variant="text" color="amber-darken-1" class="ml-auto" @click="openRoundModal()"></v-btn>
           </h2>
           
           <div v-if="!adminStore.activeConsoleEvent?.rounds || adminStore.activeConsoleEvent.rounds.length === 0" class="text-caption text-slate-500 py-4 text-center">
@@ -388,9 +389,15 @@
               class="d-flex flex-column pa-3 rounded-lg bg-slate-950 border-slate-800"
             >
               <div class="d-flex justify-between align-center mb-2">
-                <span class="text-subtitle-2 font-weight-bold text-white">
-                  Rodada #{{ round.roundNumber }}
-                </span>
+                <div class="d-flex flex-column">
+                  <span class="text-subtitle-2 font-weight-bold text-white d-flex align-center">
+                    Rodada #{{ round.roundNumber }}
+                    <v-btn icon="mdi-pencil" size="x-small" variant="text" color="slate-400" class="ml-1" @click="openRoundModal(round)"></v-btn>
+                  </span>
+                  <span class="text-caption text-amber-lighten-2 mt-1">
+                    Prêmio: {{ round.prizes && round.prizes.length > 0 ? round.prizes.map(p => p.name).join(', ') : 'Padrão' }}
+                  </span>
+                </div>
                 <v-chip
                   :color="round.status === 'IN_PROGRESS' ? 'success' : round.status === 'FINISHED' ? 'grey-darken-1' : 'amber'"
                   size="x-small"
@@ -497,17 +504,18 @@
             Gere o arquivo PDF das cartelas com cabeçalho/rodapé customizados e canhoto de controle administrativo destacado por serrilha.
           </p>
           
-          <v-text-field
-            v-model="pdfHeader"
-            label="Cabeçalho Customizado (Texto)"
-            placeholder="Ex: Igreja Matriz - Show de Prêmios"
+          <v-textarea
+            v-model="pdfPrizes"
+            label="Prêmios (Lista - um por linha)"
+            placeholder="Ex: 1º Prêmio: Carro&#10;2º Prêmio: Moto"
             variant="outlined"
             density="compact"
+            rows="3"
             bg-color="slate-950"
             color="amber-darken-1"
             class="rounded-lg text-white mb-3"
             hide-details
-          ></v-text-field>
+          ></v-textarea>
 
           <v-text-field
             v-model="pdfFooter"
@@ -794,6 +802,74 @@
         </div>
       </v-card>
     </v-dialog>
+
+    <!-- Modal de Criação / Edição de Rodada -->
+    <v-dialog v-model="isRoundModalOpen" max-width="500px">
+      <v-card class="bg-slate-900 border-slate-800 rounded-xl pa-4 text-white">
+        <v-card-title class="text-h6 font-weight-bold mb-4 text-amber-lighten-1">
+          {{ editingRound ? 'Editar Rodada' : 'Adicionar Nova Rodada' }}
+        </v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model.number="roundForm.roundNumber"
+            type="number"
+            label="Número da Rodada"
+            variant="outlined"
+            density="compact"
+            bg-color="slate-950"
+            color="amber-darken-1"
+            class="rounded-lg text-white mb-4"
+          ></v-text-field>
+
+          <h3 class="text-subtitle-2 text-slate-300 mb-2">Prêmio Principal</h3>
+          <v-text-field
+            v-model="roundForm.prizes[0].name"
+            label="Nome do Prêmio"
+            placeholder="Ex: Cartela Cheia, 1 Linha"
+            variant="outlined"
+            density="compact"
+            bg-color="slate-950"
+            color="amber-darken-1"
+            class="rounded-lg text-white mb-4"
+          ></v-text-field>
+
+          <v-select
+            v-model="roundForm.prizes[0].drawPattern"
+            :items="[
+              { title: 'Cartela Cheia', value: 'FULL_CARD' },
+              { title: 'Linha Horizontal', value: 'HORIZONTAL_LINE' },
+              { title: 'Linha Vertical', value: 'VERTICAL_LINE' },
+              { title: 'Diagonal', value: 'DIAGONAL' },
+              { title: 'Janelão', value: 'BIG_WINDOW' },
+              { title: 'Janelinha', value: 'SMALL_WINDOW' }
+            ]"
+            label="Padrão de Vitória"
+            variant="outlined"
+            density="compact"
+            bg-color="slate-950"
+            color="amber-darken-1"
+            class="rounded-lg text-white"
+          ></v-select>
+        </v-card-text>
+        <v-card-actions class="justify-end gap-2 px-6 pb-6">
+          <v-btn
+            color="grey-darken-3"
+            class="font-weight-bold text-capitalize rounded-lg"
+            @click="closeRoundModal"
+          >
+            Cancelar
+          </v-btn>
+          <v-btn
+            color="amber-darken-2"
+            class="font-weight-bold text-capitalize rounded-lg text-slate-950"
+            :loading="isRoundSubmitting"
+            @click="submitRound"
+          >
+            Salvar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -807,6 +883,55 @@ const router = useRouter()
 const adminStore = useAdminStore()
 
 const eventId = route.params.eventId as string
+
+// Round Management Modal state
+const isRoundModalOpen = ref(false)
+const editingRound = ref<any>(null)
+const roundForm = ref({
+  roundNumber: 1,
+  prizes: [
+    { name: 'Cartela Cheia', type: 'PHYSICAL', drawPattern: 'FULL_CARD' }
+  ]
+})
+const isRoundSubmitting = ref(false)
+
+const openRoundModal = (round?: any) => {
+  if (round) {
+    editingRound.value = round
+    roundForm.value = {
+      roundNumber: round.roundNumber,
+      prizes: round.prizes && round.prizes.length > 0 ? [...round.prizes] : [{ name: 'Cartela Cheia', type: 'PHYSICAL', drawPattern: 'FULL_CARD' }]
+    }
+  } else {
+    editingRound.value = null
+    const nextRound = adminStore.activeConsoleEvent?.rounds?.length ? adminStore.activeConsoleEvent.rounds.length + 1 : 1
+    roundForm.value = {
+      roundNumber: nextRound,
+      prizes: [{ name: 'Cartela Cheia', type: 'PHYSICAL', drawPattern: 'FULL_CARD' }]
+    }
+  }
+  isRoundModalOpen.value = true
+}
+
+const closeRoundModal = () => {
+  isRoundModalOpen.value = false
+  editingRound.value = null
+}
+
+const submitRound = async () => {
+  if (!adminStore.activeConsoleEvent) return
+  isRoundSubmitting.value = true
+  try {
+    if (editingRound.value) {
+      await adminStore.updateRound(adminStore.activeConsoleEvent.id, editingRound.value.id, roundForm.value)
+    } else {
+      await adminStore.createRound(adminStore.activeConsoleEvent.id, roundForm.value)
+    }
+    closeRoundModal()
+  } finally {
+    isRoundSubmitting.value = false
+  }
+}
 
 // Active console state
 const activeTab = ref('draw')
@@ -828,7 +953,7 @@ const localAnnouncements = ref<LocalAnnouncement[]>([])
 const searchSerial = ref('')
 const searchError = ref('')
 
-const pdfHeader = ref('')
+const pdfPrizes = ref('')
 const pdfFooter = ref('')
 const pdfCutStrip = ref(false)
 const ticketsQty = ref(100)
@@ -897,7 +1022,7 @@ const handleDeleteRound = async (roundId: string) => {
 }
 
 const handleDownloadPdf = async () => {
-  await adminStore.downloadTicketsPdf(eventId, pdfHeader.value, pdfFooter.value, pdfCutStrip.value)
+  await adminStore.downloadTicketsPdf(eventId, pdfPrizes.value, pdfFooter.value, pdfCutStrip.value)
 }
 
 // Computed properties

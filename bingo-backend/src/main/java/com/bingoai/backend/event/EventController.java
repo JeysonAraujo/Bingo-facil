@@ -57,6 +57,23 @@ public class EventController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    @PostMapping("/{id}/rounds")
+    public ResponseEntity<ApiResponse<EventResponseDto>> addRound(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.bingoai.backend.event.dto.CreateRoundRequest request) {
+        EventResponseDto updated = eventService.addRoundToEvent(id, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(updated));
+    }
+
+    @PutMapping("/{id}/rounds/{roundId}")
+    public ResponseEntity<ApiResponse<EventResponseDto>> updateRound(
+            @PathVariable UUID id,
+            @PathVariable UUID roundId,
+            @Valid @RequestBody com.bingoai.backend.event.dto.CreateRoundRequest request) {
+        EventResponseDto updated = eventService.updateRound(id, roundId, request);
+        return ResponseEntity.ok(ApiResponse.success(updated));
+    }
+
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<EventResponseDto>> updateEventStatus(@PathVariable UUID id, @RequestParam String status) {
         EventResponseDto updated = eventService.updateEventStatus(id, status);

@@ -45,7 +45,7 @@ public class TicketController {
     @GetMapping("/pdf")
     public ResponseEntity<byte[]> downloadTicketsPdf(
             @PathVariable UUID eventId,
-            @RequestParam(required = false) String customHeader,
+            @RequestParam(required = false) String prizes,
             @RequestParam(required = false) String customFooter,
             @RequestParam(defaultValue = "false") boolean hasCutStrip) {
         Event event = ticketService.getEvent(eventId)
@@ -57,7 +57,7 @@ public class TicketController {
             return ResponseEntity.noContent().build();
         }
 
-        byte[] pdfBytes = pdfGenerator.generateTicketsPdf(tickets, eventTitle, customHeader, customFooter, hasCutStrip, event.getHeaderImageUrl());
+        byte[] pdfBytes = pdfGenerator.generateTicketsPdf(tickets, eventTitle, prizes, customFooter, hasCutStrip, event.getHeaderImageUrl());
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
