@@ -11,11 +11,16 @@ public class ClaimResponseDto {
     private String status;
     private String createdAt;
     private String serial;
+    private boolean automatic;
 
     public ClaimResponseDto() {
     }
 
     public ClaimResponseDto(UUID claimId, UUID ticketId, UUID roundId, Integer cardIndex, String status, String createdAt, String serial) {
+        this(claimId, ticketId, roundId, cardIndex, status, createdAt, serial, false);
+    }
+
+    public ClaimResponseDto(UUID claimId, UUID ticketId, UUID roundId, Integer cardIndex, String status, String createdAt, String serial, boolean automatic) {
         this.claimId = claimId;
         this.ticketId = ticketId;
         this.roundId = roundId;
@@ -23,6 +28,7 @@ public class ClaimResponseDto {
         this.status = status;
         this.createdAt = createdAt;
         this.serial = serial;
+        this.automatic = automatic;
     }
 
     public UUID getClaimId() {
@@ -79,5 +85,13 @@ public class ClaimResponseDto {
 
     public void setSerial(String serial) {
         this.serial = serial;
+    }
+
+    public boolean isAutomatic() {
+        return automatic;
+    }
+
+    public void setAutomatic(boolean automatic) {
+        this.automatic = automatic;
     }
 }

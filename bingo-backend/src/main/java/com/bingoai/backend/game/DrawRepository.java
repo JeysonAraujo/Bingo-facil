@@ -16,4 +16,6 @@ public interface DrawRepository extends JpaRepository<Draw, UUID> {
     boolean existsByRoundIdAndBallNumber(UUID roundId, Integer ballNumber);
 
     void deleteByRoundIdAndBallNumber(UUID roundId, Integer ballNumber);
+
+    void deleteByRoundId(UUID roundId);
 }

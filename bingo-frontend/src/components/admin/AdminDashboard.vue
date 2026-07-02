@@ -38,7 +38,7 @@
     </v-alert>
 
     <!-- Loading Skeleton Grid -->
-    <v-row v-if="adminStore.isLoading">
+    <v-row v-if="adminStore.isLoading && adminStore.events.length === 0">
       <v-col v-for="n in 3" :key="n" cols="12" md="4">
         <v-card class="pa-4 rounded-lg elevation-1" loading></v-card>
       </v-col>
@@ -73,12 +73,12 @@
         <v-card class="elevation-2 rounded-lg border-card h-100 d-flex flex-column transition-card">
           <!-- Card Header Banner -->
           <v-card-item class="bg-indigo-lighten-5 py-4 border-bottom-indigo">
-            <div class="d-flex justify-between align-center">
+            <div class="d-flex justify-space-between align-center">
               <v-card-title class="font-weight-bold text-h6 color-primary text-truncate pr-2">
                 {{ event.title }}
               </v-card-title>
-              <v-chip color="success" size="small" variant="flat" class="font-weight-bold shrink-0">
-                Ativo
+              <v-chip :color="getStatusColor(event.status || 'AGUARDANDO')" size="small" variant="flat" class="font-weight-bold shrink-0">
+                {{ formatStatus(event.status || 'AGUARDANDO') }}
               </v-chip>
             </div>
           </v-card-item>
@@ -132,62 +132,188 @@
               variant="flat"
               block
               append-icon="mdi-arrow-right"
-              class="font-weight-bold rounded-lg py-2 mb-2 text-white"
+              class="font-weight-bold rounded-lg py-2 mb-3 text-white"
               min-height="40px"
               :to="`/admin/events/${event.id}/console`"
             >
               Gerenciar Evento
             </v-btn>
+
+            <v-select
+              :model-value="event.status"
+              :items="['AGUARDANDO', 'ATIVO', 'FINALIZADO']"
+              density="compact"
+              hide-details
+              label="Modificar Status"
+              variant="outlined"
+              class="rounded-lg mb-3"
+              bg-color="white"
+              @update:model-value="(val) => handleStatusChange(event.id, val)"
+            ></v-select>
+
             <div class="d-flex justify-space-between w-100">
               <v-btn
                 color="secondary"
                 variant="outlined"
-                prepend-icon="mdi-ticket"
-                class="flex-grow-1 mr-1"
-                :loading="adminStore.isLoading"
-                :disabled="adminStore.isLoading"
-                @click="promptGenerateTickets(event.id)"
+                prepend-icon="mdi-pencil"
+                class="flex-grow-1 mr-1 rounded-lg"
+                @click="openEditDialog(event)"
               >
-                Gerar Cartelas
+                Editar
               </v-btn>
               <v-btn
-                color="success"
+                color="red-darken-1"
                 variant="outlined"
-                prepend-icon="mdi-file-pdf-box"
-                class="flex-grow-1 ml-1"
-                :loading="adminStore.isLoading"
-                :disabled="adminStore.isLoading"
-                @click="adminStore.downloadTicketsPdf(event.id)"
+                prepend-icon="mdi-delete"
+                class="flex-grow-1 ml-1 rounded-lg"
+                @click="confirmDelete(event.id)"
               >
-                Baixar PDF
+                Excluir
               </v-btn>
             </div>
-            <v-alert
-              v-if="adminStore.error"
-              type="error"
-              density="compact"
-              class="mt-2 text-caption"
-              closable
-              @click:close="adminStore.error = null"
-            >
-              {{ adminStore.error }}
-            </v-alert>
           </v-card-actions>
         </v-card>
       </v-col>
     </v-row>
+
+    <!-- Edit Event Dialog -->
+    <v-dialog v-model="editDialog" max-width="500px" persistent>
+      <v-card class="rounded-xl pa-4">
+        <v-card-title class="font-weight-bold text-h5 color-primary pb-2">
+          Editar Evento
+        </v-card-title>
+        <v-card-text>
+          <v-form ref="form" v-model="formValid">
+            <v-text-field
+              v-model="editForm.title"
+              label="Título do Evento"
+              variant="outlined"
+              :rules="[v => !!v || 'O título é obrigatório']"
+              class="mb-3 rounded-lg"
+            ></v-text-field>
+            
+            <v-text-field
+              v-model="editForm.scheduledAt"
+              label="Data e Hora"
+              type="datetime-local"
+              variant="outlined"
+              :rules="[v => !!v || 'A data é obrigatória']"
+              class="mb-3 rounded-lg"
+            ></v-text-field>
+
+            <v-text-field
+              v-model="editForm.youtubeUrl"
+              label="URL da Stream (YouTube)"
+              variant="outlined"
+              placeholder="https://www.youtube.com/watch?v=..."
+              class="mb-3 rounded-lg"
+            ></v-text-field>
+          </v-form>
+        </v-card-text>
+        <v-card-actions class="pt-0">
+          <v-spacer></v-spacer>
+          <v-btn color="grey-darken-1" variant="text" @click="editDialog = false">Cancelar</v-btn>
+          <v-btn color="primary" variant="flat" class="rounded-lg px-4" :disabled="!formValid" @click="saveEditedEvent">Salvar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useAdminStore } from '../../stores/admin'
 
 const adminStore = useAdminStore()
 
+const editDialog = ref(false)
+const formValid = ref(false)
+const editingEventId = ref<string | null>(null)
+const editForm = ref({
+  title: '',
+  scheduledAt: '',
+  youtubeUrl: ''
+})
+
 onMounted(() => {
   adminStore.fetchEvents()
 })
+
+const openEditDialog = (event: any) => {
+  editingEventId.value = event.id
+  let formattedDate = ''
+  if (event.scheduledAt) {
+    const d = new Date(event.scheduledAt)
+    const pad = (n: number) => n.toString().padStart(2, '0')
+    // Local date string format: YYYY-MM-DDTHH:MM
+    formattedDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
+  editForm.value = {
+    title: event.title,
+    scheduledAt: formattedDate,
+    youtubeUrl: event.youtubeUrl || ''
+  }
+  editDialog.value = true
+}
+
+const saveEditedEvent = async () => {
+  if (!editingEventId.value) return
+  const event = adminStore.events.find(e => e.id === editingEventId.value)
+  const dateObj = new Date(editForm.value.scheduledAt)
+  const payload = {
+    title: editForm.value.title,
+    scheduledAt: dateObj.toISOString(),
+    youtubeUrl: editForm.value.youtubeUrl,
+    rounds: event ? event.rounds.map((r: any) => ({
+      roundNumber: r.roundNumber,
+      prizes: r.prizes.map((p: any) => ({
+        name: p.name,
+        type: p.type,
+        drawPattern: p.drawPattern
+      }))
+    })) : []
+  }
+  const success = await adminStore.updateEvent(editingEventId.value, payload)
+  if (success) {
+    editDialog.value = false
+    editingEventId.value = null
+  }
+}
+
+const confirmDelete = async (eventId: string) => {
+  if (window.confirm("Você tem certeza que deseja excluir este evento permanentemente? Todos os dados vinculados serão perdidos.")) {
+    await adminStore.deleteEvent(eventId)
+  }
+}
+
+const handleStatusChange = async (eventId: string, status: string) => {
+  await adminStore.updateEventStatus(eventId, status)
+}
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'ATIVO':
+      return 'success'
+    case 'FINALIZADO':
+      return 'error'
+    case 'AGUARDANDO':
+    default:
+      return 'warning'
+  }
+}
+
+const formatStatus = (status: string) => {
+  switch (status) {
+    case 'ATIVO':
+      return 'Ativo'
+    case 'FINALIZADO':
+      return 'Finalizado'
+    case 'AGUARDANDO':
+      return 'Aguardando'
+    default:
+      return status
+  }
+}
 
 // Utility formatters
 const formatDateTime = (isoString: string) => {
@@ -212,22 +338,6 @@ const formatPrizeType = (type: string) => {
       return 'Cartela Cheia'
     default:
       return type
-  }
-}
-
-const promptGenerateTickets = (eventId: string) => {
-  const quantity = window.prompt("Quantas cartelas você deseja gerar para este evento?", "100");
-  if (quantity) {
-    const num = parseInt(quantity, 10);
-    if (!isNaN(num) && num > 0 && num <= 5000) {
-      adminStore.generateTickets(eventId, num).then(success => {
-        if (success) {
-          alert(`${num} cartelas geradas com sucesso!`);
-        }
-      });
-    } else {
-      adminStore.error = "Por favor, insira uma quantidade válida entre 1 e 5000.";
-    }
   }
 }
 </script>

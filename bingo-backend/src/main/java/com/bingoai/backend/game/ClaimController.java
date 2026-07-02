@@ -7,6 +7,7 @@ import com.bingoai.backend.game.dto.BingoClaimMessage;
 import com.bingoai.backend.game.dto.ClaimRequestDto;
 import com.bingoai.backend.game.dto.ClaimResponseDto;
 import com.bingoai.backend.game.dto.DrawBallMessage;
+import com.bingoai.backend.game.dto.RoundStatusMessage;
 import com.bingoai.backend.ticket.CardMatrix;
 import com.bingoai.backend.ticket.Ticket;
 import com.bingoai.backend.ticket.TicketRepository;
@@ -145,18 +146,20 @@ public class ClaimController {
 
         claim.setStatus("APPROVED");
         Claim saved = claimRepository.save(claim);
+        Round round = saved.getRound();
+        round.setStatus("FINISHED");
 
         ClaimResponseDto responseDto = new ClaimResponseDto(
                 saved.getId(),
                 saved.getTicket().getId(),
-                saved.getRound().getId(),
+                round.getId(),
                 saved.getCardIndex(),
                 saved.getStatus(),
                 saved.getCreatedAt().toString(),
                 saved.getTicket().getSerial()
         );
 
-        UUID eventId = saved.getRound().getEvent().getId();
+        UUID eventId = round.getEvent().getId();
         BingoClaimMessage wsMessage = new BingoClaimMessage(
                 saved.getTicket().getId().toString(),
                 saved.getTicket().getSessionToken(),
@@ -167,6 +170,9 @@ public class ClaimController {
         );
         wsMessage.setEventType("BINGO_APPROVED");
         messagingTemplate.convertAndSend("/topic/events/" + eventId + "/claims", wsMessage);
+
+        RoundStatusMessage statusMessage = new RoundStatusMessage(round.getId(), round.getRoundNumber() != null ? round.getRoundNumber() : 0, "FINISHED");
+        messagingTemplate.convertAndSend("/topic/events/" + eventId + "/rounds", statusMessage);
 
         return ResponseEntity.ok(ApiResponse.success(responseDto));
     }

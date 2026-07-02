@@ -12,7 +12,10 @@ import java.util.UUID;
 @Repository
 public interface TicketRepository extends JpaRepository<Ticket, UUID> {
     List<Ticket> findByEventId(UUID eventId);
+    List<Ticket> findByEventIdAndActivatedTrue(UUID eventId);
+
+    Optional<Ticket> findBySerial(String serial);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Optional<Ticket> findBySerial(String serial);
+    Optional<Ticket> findWithLockBySerial(String serial);
 }

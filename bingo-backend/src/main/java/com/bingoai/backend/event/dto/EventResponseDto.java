@@ -10,21 +10,31 @@ public class EventResponseDto {
     private OffsetDateTime scheduledAt;
     private OffsetDateTime createdAt;
     private Integer streamDelaySeconds;
+    private String youtubeUrl;
     private List<RoundResponseDto> rounds;
+    private String status;
+    private String headerImageUrl;
 
     public EventResponseDto() {
     }
 
     public EventResponseDto(UUID id, String title, OffsetDateTime scheduledAt, OffsetDateTime createdAt, List<RoundResponseDto> rounds) {
-        this(id, title, scheduledAt, createdAt, 0, rounds);
+        this(id, title, scheduledAt, createdAt, 0, null, "AGUARDANDO", null, rounds);
     }
 
     public EventResponseDto(UUID id, String title, OffsetDateTime scheduledAt, OffsetDateTime createdAt, Integer streamDelaySeconds, List<RoundResponseDto> rounds) {
+        this(id, title, scheduledAt, createdAt, streamDelaySeconds, null, "AGUARDANDO", null, rounds);
+    }
+
+    public EventResponseDto(UUID id, String title, OffsetDateTime scheduledAt, OffsetDateTime createdAt, Integer streamDelaySeconds, String youtubeUrl, String status, String headerImageUrl, List<RoundResponseDto> rounds) {
         this.id = id;
         this.title = title;
         this.scheduledAt = scheduledAt;
         this.createdAt = createdAt;
         this.streamDelaySeconds = streamDelaySeconds;
+        this.youtubeUrl = youtubeUrl;
+        this.status = status;
+        this.headerImageUrl = headerImageUrl;
         this.rounds = rounds;
     }
 
@@ -68,11 +78,35 @@ public class EventResponseDto {
         this.streamDelaySeconds = streamDelaySeconds;
     }
 
+    public String getYoutubeUrl() {
+        return youtubeUrl;
+    }
+
+    public void setYoutubeUrl(String youtubeUrl) {
+        this.youtubeUrl = youtubeUrl;
+    }
+
     public List<RoundResponseDto> getRounds() {
         return rounds;
     }
 
     public void setRounds(List<RoundResponseDto> rounds) {
         this.rounds = rounds;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getHeaderImageUrl() {
+        return headerImageUrl;
+    }
+
+    public void setHeaderImageUrl(String headerImageUrl) {
+        this.headerImageUrl = headerImageUrl;
     }
 }

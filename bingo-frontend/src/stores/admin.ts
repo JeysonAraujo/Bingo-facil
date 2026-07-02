@@ -73,11 +73,22 @@ export const useAdminStore = defineStore('admin', {
       }
     },
 
-    async downloadTicketsPdf(eventId: string): Promise<void> {
+    async downloadTicketsPdf(
+      eventId: string,
+      prizes?: string,
+      customFooter?: string,
+      hasCutStrip: boolean = false
+    ): Promise<void> {
       this.isLoading = true
       this.error = null
       try {
-        const response = await api.get(`/events/${eventId}/tickets/pdf`, {
+        const params = new URLSearchParams()
+        if (prizes) params.append('prizes', prizes)
+        if (customFooter) params.append('customFooter', customFooter)
+        if (hasCutStrip) params.append('hasCutStrip', 'true')
+        const queryString = params.toString() ? `?${params.toString()}` : ''
+
+        const response = await api.get(`/events/${eventId}/tickets/pdf${queryString}`, {
           responseType: 'blob'
         })
         const url = window.URL.createObjectURL(new Blob([response.data]))
@@ -91,6 +102,114 @@ export const useAdminStore = defineStore('admin', {
       } catch (err: any) {
         console.error(err)
         this.error = err.response?.data?.error?.message || err.message || 'Erro ao baixar o PDF'
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async updateEvent(eventId: string, payload: CreateEventRequest): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.put<ApiResponse<EventResponseDto>>(`/events/${eventId}`, payload)
+        if (response.data.success) {
+          const index = this.events.findIndex(e => e.id === eventId)
+          if (index !== -1) {
+            this.events[index] = response.data.data
+          }
+          if (this.activeConsoleEvent && this.activeConsoleEvent.id === eventId) {
+            this.activeConsoleEvent = response.data.data
+          }
+          return true
+        } else {
+          this.error = response.data.error?.message || 'Falha ao atualizar o evento'
+          return false
+        }
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao atualizar o evento'
+        return false
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async deleteEvent(eventId: string): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.delete<ApiResponse<void>>(`/events/${eventId}`)
+        if (response.data.success) {
+          this.events = this.events.filter(e => e.id !== eventId)
+          return true
+        } else {
+          this.error = response.data.error?.message || 'Falha ao excluir o evento'
+          return false
+        }
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao excluir o evento'
+        return false
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async updateEventStatus(eventId: string, status: string): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.patch<ApiResponse<EventResponseDto>>(`/events/${eventId}/status?status=${status}`)
+        if (response.data.success) {
+          const index = this.events.findIndex(e => e.id === eventId)
+          if (index !== -1) {
+            this.events[index] = response.data.data
+          }
+          if (this.activeConsoleEvent && this.activeConsoleEvent.id === eventId) {
+            this.activeConsoleEvent = response.data.data
+          }
+          return true
+        } else {
+          this.error = response.data.error?.message || 'Falha ao atualizar status do evento'
+          return false
+        }
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao atualizar status'
+        return false
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async uploadHeaderImage(eventId: string, file: File): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        const response = await api.post<ApiResponse<EventResponseDto>>(`/events/${eventId}/header-image`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        })
+        if (response.data.success) {
+          const index = this.events.findIndex(e => e.id === eventId)
+          if (index !== -1) {
+            this.events[index] = response.data.data
+          }
+          if (this.activeConsoleEvent && this.activeConsoleEvent.id === eventId) {
+            this.activeConsoleEvent = response.data.data
+          }
+          return true
+        } else {
+          this.error = response.data.error?.message || 'Falha ao enviar cabeçalho'
+          return false
+        }
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao enviar arquivo'
+        return false
       } finally {
         this.isLoading = false
       }
@@ -200,7 +319,8 @@ export const useAdminStore = defineStore('admin', {
                 cardIndex: claimMsg.payload.cardIndex,
                 status: claimMsg.payload.status,
                 serial: claimMsg.payload.serial,
-                createdAt: claimMsg.timestamp
+                createdAt: claimMsg.timestamp,
+                automatic: claimMsg.payload.automatic
               })
             }
           } else if (claimMsg.eventType === 'BINGO_APPROVED' || claimMsg.eventType === 'BINGO_REJECTED') {
@@ -208,6 +328,18 @@ export const useAdminStore = defineStore('admin', {
             if (idx !== -1) {
               this.claims[idx].status = claimMsg.payload.status
             }
+          }
+        },
+        undefined, // onChatMessage
+        (roundMsg) => {
+          if (this.activeConsoleEvent && this.activeConsoleEvent.rounds) {
+            const r = this.activeConsoleEvent.rounds.find((r: any) => r.id === roundMsg.roundId)
+            if (r) {
+              r.status = roundMsg.status
+            }
+          }
+          if (roundMsg.status === 'IN_PROGRESS') {
+            this.drawnConsoleNumbers = []
           }
         }
       )
@@ -221,6 +353,100 @@ export const useAdminStore = defineStore('admin', {
         }
       } catch (err) {
         console.error('[AdminStore] Failed to fetch initial claims:', err)
+      }
+    },
+
+    async startRound(roundId: string): Promise<boolean> {
+      try {
+        const response = await api.post(`/rounds/${roundId}/start`)
+        return response.data.success
+      } catch (err) {
+        console.error('[AdminStore] Failed to start round:', err)
+        return false
+      }
+    },
+
+    async finishRound(roundId: string): Promise<boolean> {
+      try {
+        const response = await api.post(`/rounds/${roundId}/finish`)
+        return response.data.success
+      } catch (err) {
+        console.error('[AdminStore] Failed to finish round:', err)
+        return false
+      }
+    },
+
+    async cancelRound(roundId: string): Promise<boolean> {
+      try {
+        const response = await api.post(`/rounds/${roundId}/cancel`)
+        return response.data.success
+      } catch (err) {
+        console.error('[AdminStore] Failed to cancel round:', err)
+        return false
+      }
+    },
+
+    async deleteRound(roundId: string): Promise<boolean> {
+      try {
+        const response = await api.delete(`/rounds/${roundId}`)
+        return response.data.success
+      } catch (err) {
+        console.error('[AdminStore] Failed to delete round:', err)
+        return false
+      }
+    },
+
+    async createRound(eventId: string, payload: any): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.post<ApiResponse<EventResponseDto>>(`/events/${eventId}/rounds`, payload)
+        if (response.data.success) {
+          const index = this.events.findIndex(e => e.id === eventId)
+          if (index !== -1) {
+            this.events[index] = response.data.data
+          }
+          if (this.activeConsoleEvent && this.activeConsoleEvent.id === eventId) {
+            this.activeConsoleEvent = response.data.data
+          }
+          return true
+        } else {
+          this.error = response.data.error?.message || 'Falha ao criar rodada'
+          return false
+        }
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao criar rodada'
+        return false
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async updateRound(eventId: string, roundId: string, payload: any): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.put<ApiResponse<EventResponseDto>>(`/events/${eventId}/rounds/${roundId}`, payload)
+        if (response.data.success) {
+          const index = this.events.findIndex(e => e.id === eventId)
+          if (index !== -1) {
+            this.events[index] = response.data.data
+          }
+          if (this.activeConsoleEvent && this.activeConsoleEvent.id === eventId) {
+            this.activeConsoleEvent = response.data.data
+          }
+          return true
+        } else {
+          this.error = response.data.error?.message || 'Falha ao atualizar rodada'
+          return false
+        }
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao atualizar rodada'
+        return false
+      } finally {
+        this.isLoading = false
       }
     },
 

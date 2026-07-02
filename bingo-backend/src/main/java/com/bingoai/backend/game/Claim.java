@@ -31,15 +31,23 @@ public class Claim {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
+    @Column(nullable = false)
+    private boolean automatic = false;
+
     public Claim() {
     }
 
     public Claim(Ticket ticket, Round round, int cardIndex) {
+        this(ticket, round, cardIndex, false);
+    }
+
+    public Claim(Ticket ticket, Round round, int cardIndex, boolean automatic) {
         this.ticket = ticket;
         this.round = round;
         this.cardIndex = cardIndex;
         this.status = "PENDING";
         this.createdAt = OffsetDateTime.now();
+        this.automatic = automatic;
     }
 
     // Getters and Setters
@@ -89,5 +97,13 @@ public class Claim {
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public boolean isAutomatic() {
+        return automatic;
+    }
+
+    public void setAutomatic(boolean automatic) {
+        this.automatic = automatic;
     }
 }

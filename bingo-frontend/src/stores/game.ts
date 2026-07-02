@@ -60,7 +60,8 @@ export const useGameStore = defineStore('game', {
     // ── Victory Celebration state (Story 5.2) ───────────────────────────────
     winnerSerial: null as string | null,
     winnerCardIndex: null as number | null,
-    showVictoryOverlay: false
+    showVictoryOverlay: false,
+    activeViewers: 0
   }),
 
   getters: {
@@ -197,7 +198,11 @@ export const useGameStore = defineStore('game', {
      *
      * @param eventId UUID of the active bingo event
      */
-    connectToGame(eventId: string): void {
+    connectToGame(
+      eventId: string,
+      onChatMessage?: (chat: any) => void,
+      onRoundStatusChange?: (round: any) => void
+    ): void {
       // Prevent duplicate connections
       if (this._wsClient) {
         this._wsClient.deactivate()
@@ -230,8 +235,36 @@ export const useGameStore = defineStore('game', {
             this.winnerCardIndex = claimMsg.payload.cardIndex
             this.showVictoryOverlay = true
           }
+        },
+        onChatMessage,
+        (roundMsg) => {
+          if (this.eventDetails && this.eventDetails.rounds) {
+            const r = this.eventDetails.rounds.find((r: any) => r.id === roundMsg.roundId)
+            if (r) {
+              r.status = roundMsg.status
+            }
+          }
+          if (roundMsg.status === 'IN_PROGRESS') {
+            this.drawnNumbers = []
+          }
+          if (onRoundStatusChange) {
+            onRoundStatusChange(roundMsg)
+          }
+        },
+        (viewers: number) => {
+          this.activeViewers = viewers
         }
       )
+    },
+
+    sendChatMessage(text: string): void {
+      if (this._wsClient && this._wsClient.connected && this.eventId) {
+        const sender = this.serial ? `Cartela ${this.serial}` : 'Jogador'
+        this._wsClient.publish({
+          destination: `/app/events/${this.eventId}/chat`,
+          body: JSON.stringify({ sender, text })
+        })
+      }
     },
 
     dismissVictory() {

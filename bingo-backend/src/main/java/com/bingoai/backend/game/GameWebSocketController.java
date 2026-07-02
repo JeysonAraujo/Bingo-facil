@@ -7,6 +7,8 @@ import com.bingoai.backend.game.dto.DrawBallMessage;
 import com.bingoai.backend.game.dto.TicketOverrideCommand;
 import com.bingoai.backend.game.dto.TicketOverrideMessage;
 import com.bingoai.backend.game.dto.StreamDelayMessage;
+import com.bingoai.backend.game.dto.ChatMessage;
+import com.bingoai.backend.game.dto.RoundStatusMessage;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -37,13 +39,16 @@ public class GameWebSocketController {
     private final SimpMessagingTemplate messagingTemplate;
     private final GameService gameService;
     private final AdminOverrideService adminOverrideService;
+    private final ProfanityFilterService profanityFilterService;
 
     public GameWebSocketController(SimpMessagingTemplate messagingTemplate,
                                    GameService gameService,
-                                   AdminOverrideService adminOverrideService) {
+                                   AdminOverrideService adminOverrideService,
+                                   ProfanityFilterService profanityFilterService) {
         this.messagingTemplate = messagingTemplate;
         this.gameService = gameService;
         this.adminOverrideService = adminOverrideService;
+        this.profanityFilterService = profanityFilterService;
     }
 
     /**
@@ -190,6 +195,32 @@ public class GameWebSocketController {
         StreamDelayMessage message = new StreamDelayMessage(delaySeconds);
         messagingTemplate.convertAndSend(
                 "/topic/events/" + eventId + "/delay",
+                message
+        );
+    }
+
+    /**
+     * Receives a chat message from a user, filters out profanities, and broadcasts it to the room.
+     */
+    @MessageMapping("/events/{eventId}/chat")
+    public void handleChatMessage(
+            @DestinationVariable String eventId,
+            @Payload ChatMessage message) {
+        String filteredText = profanityFilterService.filter(message.getText());
+        message.setText(filteredText);
+        messagingTemplate.convertAndSend(
+                "/topic/events/" + eventId + "/chat",
+                message
+        );
+    }
+
+    /**
+     * Broadcasts round status changes to all subscribers.
+     */
+    public void broadcastRoundStatus(String eventId, UUID roundId, int roundNumber, String status) {
+        RoundStatusMessage message = new RoundStatusMessage(roundId, roundNumber, status);
+        messagingTemplate.convertAndSend(
+                "/topic/events/" + eventId + "/rounds",
                 message
         );
     }

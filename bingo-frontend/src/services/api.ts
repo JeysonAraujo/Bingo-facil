@@ -35,7 +35,10 @@ export interface EventResponseDto {
   scheduledAt: string
   createdAt: string
   streamDelaySeconds?: number
+  youtubeUrl?: string
   rounds: RoundResponseDto[]
+  status?: string
+  headerImageUrl?: string
 }
 
 export interface CreatePrizeRequest {
@@ -53,6 +56,7 @@ export interface CreateEventRequest {
   title: string
   scheduledAt: string
   rounds: CreateRoundRequest[]
+  youtubeUrl?: string
 }
 
 // Ticket Activation interfaces (Story 2.1)

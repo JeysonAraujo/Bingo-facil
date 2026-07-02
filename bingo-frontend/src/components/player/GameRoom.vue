@@ -67,19 +67,23 @@
             <div id="youtube-stream-container" class="youtube-stream-card">
               <div class="iframe-container">
                 <iframe
-                  src="https://www.youtube.com/embed/S2gB9eGqQic?autoplay=1&mute=1&loop=1&playlist=S2gB9eGqQic"
+                  v-if="youtubeEmbedUrl"
+                  :src="youtubeEmbedUrl"
                   title="Bingo Live Stream"
                   frameborder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowfullscreen
                 ></iframe>
+                <div v-else class="d-flex align-center justify-center text-grey-lighten-1 h-full" style="background: #000; position: absolute; top:0; left:0; width:100%; height:100%;">
+                  <span>Aguardando a transmissão começar...</span>
+                </div>
               </div>
               <div class="stream-footer px-4 py-3 d-flex justify-between align-center">
                 <div class="d-flex flex-column">
-                  <span class="stream-title">Sorteio de Prêmios - Especial de Inauguração</span>
+                  <span class="stream-title">{{ gameStore.eventDetails?.title || 'Sorteio de Prêmios - Bingo AI' }}</span>
                   <span class="stream-views">
                     <v-icon size="small" class="mr-1">mdi-eye</v-icon>
-                    1,240 assistindo agora
+                    {{ gameStore.activeViewers }} assistindo agora
                   </span>
                 </div>
                 <v-chip color="red-darken-2" variant="flat" size="small" class="font-weight-bold">
@@ -139,18 +143,23 @@
                 </v-window-item>
 
                 <!-- Pattern Window -->
-                <v-window-item value="pattern" class="pattern-window d-flex align-center justify-center pa-6">
-                  <div class="text-center">
-                    <h3 class="pattern-title mb-2">CARTELA CHEIA</h3>
-                    <p class="pattern-subtitle mb-4">Marque todos os 24 números para gritar BINGO!</p>
-                    <div class="pattern-grid-preview">
-                      <div
-                        v-for="i in 25"
-                        :key="i"
-                        class="pattern-cell-preview"
-                        :class="{ 'pattern-center': i === 13 }"
-                      >
-                        <v-icon v-if="i === 13" size="x-small">mdi-star</v-icon>
+                <v-window-item value="pattern" class="pattern-window">
+                  <div class="d-flex align-center justify-center pa-6 text-center w-100 h-100">
+                    <div>
+                      <h3 class="pattern-title mb-2">{{ activeRoundPatternTitle }}</h3>
+                      <p class="pattern-subtitle mb-4">{{ activeRoundPatternSubtitle }}</p>
+                      <div class="pattern-grid-preview">
+                        <div
+                          v-for="i in 25"
+                          :key="i"
+                          class="pattern-cell-preview"
+                          :class="{
+                            'pattern-center': i === 13,
+                            'pattern-highlight': isCellHighlighted(i)
+                          }"
+                        >
+                          <v-icon v-if="i === 13" size="x-small">mdi-star</v-icon>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -176,7 +185,15 @@
               </div>
 
               <!-- CARDS AREA CONTAINER -->
-              <div id="bingo-cards-container" class="cards-outer-container">
+              <div id="bingo-cards-container" class="cards-outer-container" style="position: relative;">
+                <!-- Next Round Banner Overlay -->
+                <transition name="fade">
+                  <div v-if="showNextRoundAlert" class="next-round-overlay d-flex flex-column align-center justify-center text-center pa-6">
+                    <v-icon size="48" color="amber-darken-2" class="mb-3 animate-bounce">mdi-timer-sand</v-icon>
+                    <h3 class="text-h6 font-weight-bold text-white mb-2">Fique na Sala!</h3>
+                    <p class="text-body-2 text-grey-lighten-2 mb-0">A próxima rodada já vai começar!</p>
+                  </div>
+                </transition>
                 <!-- DESKTOP BINGO CARDS: 2x2 Grid (Visible on md and up) -->
                 <div class="cards-desktop-grid">
                   <BingoCard
@@ -661,8 +678,8 @@ function doesCardMatchPatterns(card: any, patterns: string[]): boolean {
   }
   for (const pattern of patterns) {
     const pat = pattern.toUpperCase()
-    if (pat === 'LINE' && checkCardLine(card)) return true
-    if (pat === 'COLUMN' && checkCardColumn(card)) return true
+    if ((pat === 'LINE' || pat === 'ANY_LINE') && checkCardLine(card)) return true
+    if ((pat === 'COLUMN' || pat === 'ANY_COLUMN') && checkCardColumn(card)) return true
     if (pat === 'DIAGONAL' && checkCardDiagonal(card)) return true
     if ((pat === 'OUTER_BORDER' || pat === 'JANELÃO' || pat === 'JANELAO') && checkCardOuterBorder(card)) return true
     if ((pat === 'INNER_BORDER' || pat === 'JANELINHA') && checkCardInnerBorder(card)) return true
@@ -677,6 +694,94 @@ const activeRoundPatterns = computed(() => {
   if (!activeRound || !activeRound.prizes) return []
   return activeRound.prizes.map((p: any) => p.drawPattern)
 })
+
+const activeRoundPatternTitle = computed(() => {
+  const patterns = activeRoundPatterns.value
+  if (!patterns || patterns.length === 0) return 'CARTELA CHEIA'
+  const pat = patterns[0].toUpperCase()
+  switch (pat) {
+    case 'LINE':
+    case 'ANY_LINE':
+      return 'MARCAÇÃO LINHA'
+    case 'COLUMN':
+    case 'ANY_COLUMN':
+      return 'MARCAÇÃO COLUNA'
+    case 'DIAGONAL':
+      return 'MARCAÇÃO DIAGONAL'
+    case 'OUTER_BORDER':
+    case 'JANELÃO':
+    case 'JANELAO':
+      return 'JANELÃO (OUTER BORDER)'
+    case 'INNER_BORDER':
+    case 'JANELINHA':
+      return 'JANELINHA (INNER BORDER)'
+    case 'FULL_CARD':
+    case 'FULL_GRID':
+    case 'BINGO_CHEIO':
+    default:
+      return 'CARTELA CHEIA'
+  }
+})
+
+const activeRoundPatternSubtitle = computed(() => {
+  const patterns = activeRoundPatterns.value
+  if (!patterns || patterns.length === 0) return 'Marque todos os 24 números para gritar BINGO!'
+  const pat = patterns[0].toUpperCase()
+  switch (pat) {
+    case 'LINE':
+    case 'ANY_LINE':
+      return 'Marque qualquer linha horizontal de 5 números para gritar BINGO!'
+    case 'COLUMN':
+    case 'ANY_COLUMN':
+      return 'Marque qualquer coluna vertical de 5 números para gritar BINGO!'
+    case 'DIAGONAL':
+      return 'Marque qualquer uma das duas diagonais de 5 números para gritar BINGO!'
+    case 'OUTER_BORDER':
+    case 'JANELÃO':
+    case 'JANELAO':
+      return 'Marque todos os números da borda externa da cartela!'
+    case 'INNER_BORDER':
+    case 'JANELINHA':
+      return 'Marque a moldura interna de 3x3 (excluindo o centro).'
+    case 'FULL_CARD':
+    case 'FULL_GRID':
+    case 'BINGO_CHEIO':
+    default:
+      return 'Marque todos os 24 números para gritar BINGO!'
+  }
+})
+
+const isCellHighlighted = (index: number) => {
+  const patterns = activeRoundPatterns.value
+  if (!patterns || patterns.length === 0) return true
+  const pat = patterns[0].toUpperCase()
+  
+  const row = Math.floor((index - 1) / 5)
+  const col = (index - 1) % 5
+  
+  switch (pat) {
+    case 'LINE':
+    case 'ANY_LINE':
+      return row === 2
+    case 'COLUMN':
+    case 'ANY_COLUMN':
+      return col === 2
+    case 'DIAGONAL':
+      return row === col || row === 4 - col
+    case 'OUTER_BORDER':
+    case 'JANELÃO':
+    case 'JANELAO':
+      return row === 0 || row === 4 || col === 0 || col === 4
+    case 'INNER_BORDER':
+    case 'JANELINHA':
+      return row >= 1 && row <= 3 && col >= 1 && col <= 3 && !(row === 2 && col === 2)
+    case 'FULL_CARD':
+    case 'FULL_GRID':
+    case 'BINGO_CHEIO':
+    default:
+      return true
+  }
+}
 
 const winningCardIndex = computed(() => {
   const cards = gameStore.ticketMatrix?.cards || []
@@ -767,7 +872,7 @@ function clearTicker() {
 // Onboarding completion key
 const ONBOARDING_COMPLETED_KEY = 'bingo_onboarding_completed'
 
-// Simulated chat messaging
+// Chat messaging
 interface ChatMsg {
   id: number
   sender: string
@@ -777,22 +882,36 @@ interface ChatMsg {
 }
 
 const chatMessages = ref<ChatMsg[]>([
-  { id: 1, sender: 'Aline S.', text: 'Boa sorte a todos!', time: '21:00' },
-  { id: 2, sender: 'Carlos M.', text: 'Hoje eu levo esse prêmio! 🏆', time: '21:01' },
-  { id: 3, sender: 'Sistema', text: 'Sala de jogo aberta! As cartelas ativadas receberão os sorteios automaticamente.', time: '21:02', isSystem: true }
+  { id: 1, sender: 'Sistema', text: 'Sala de jogo aberta! As cartelas ativadas receberão os sorteios automaticamente.', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isSystem: true }
 ])
 
-const randomChats = [
-  { sender: 'Juliana P.', text: 'Nossa, meu coração está disparado! 💓' },
-  { sender: 'Marcos T.', text: 'Só falta o número 75 para o meu bingo!' },
-  { sender: 'Fernanda R.', text: 'O locutor é muito rápido kkk' },
-  { sender: 'Lucas G.', text: 'Vamo que vamo! 🚀' },
-  { sender: 'Roberto S.', text: 'Alguém já tem 20 marcadas?' },
-  { sender: 'Amanda L.', text: 'Essa cartela 3 tá com tudo!' },
-  { sender: 'Sistema', text: 'Próxima rodada trará prêmios maiores! Fique ligado.', isSystem: true }
-]
+const showNextRoundAlert = ref(false)
 
-let chatInterval: number | undefined
+const youtubeEmbedUrl = computed(() => {
+  const url = gameStore.eventDetails?.youtubeUrl
+  if (!url) return null
+  
+  let videoId = ''
+  try {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
+    const match = url.match(regExp)
+    if (match && match[2].length === 11) {
+      videoId = match[2]
+    }
+  } catch (e) {
+    console.error('Error parsing youtube URL', e)
+  }
+  
+  if (videoId) {
+    return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}`
+  }
+  return null
+})
+
+const hasPendingRounds = computed(() => {
+  if (!gameStore.eventDetails || !gameStore.eventDetails.rounds) return false
+  return gameStore.eventDetails.rounds.some((r: any) => r.status === 'PENDING')
+})
 
 // Guard & Onboarding Trigger on Mount
 onMounted(async () => {
@@ -807,11 +926,9 @@ onMounted(async () => {
     showTour.value = true
   }
 
-  // Fetch initial drawn numbers from database and establish WebSocket subscription.
-  // Falls back to a placeholder ID if no dynamic eventId is active.
   const activeEventId = gameStore.eventId || 'placeholder-event-id'
   
-  // 0. Recover event details (such as initial stream delay)
+  // 0. Recover event details (such as initial stream delay and youtube url)
   await gameStore.fetchEventDetails(activeEventId)
   
   // 1. Recover chronological history from database
@@ -822,42 +939,55 @@ onMounted(async () => {
     await gameStore.fetchTicketOverrides(gameStore.serial)
   }
   
-  // 2. Open WebSocket channel for real-time updates
-  gameStore.connectToGame(activeEventId)
+  // 2. Open WebSocket channel for real-time updates (draws, announcements, overrides, latency, claims, chat, rounds)
+  gameStore.connectToGame(
+    activeEventId,
+    (chatMsg: any) => {
+      const timeStr = new Date(chatMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      chatMessages.value.push({
+        id: Date.now() + Math.random(),
+        sender: chatMsg.sender,
+        text: chatMsg.text,
+        time: timeStr
+      })
+      if (chatMessages.value.length > 50) {
+        chatMessages.value.shift()
+      }
+      scrollToBottom()
+    },
+    (roundMsg: any) => {
+      if (roundMsg.status === 'FINISHED') {
+        if (hasPendingRounds.value) {
+          showNextRoundAlert.value = true
+        }
+        chatMessages.value.push({
+          id: Date.now(),
+          sender: 'Sistema',
+          text: `Rodada #${roundMsg.roundNumber} finalizada!`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isSystem: true
+        })
+        scrollToBottom()
+      } else if (roundMsg.status === 'IN_PROGRESS') {
+        showNextRoundAlert.value = false
+        chatMessages.value.push({
+          id: Date.now(),
+          sender: 'Sistema',
+          text: `Rodada #${roundMsg.roundNumber} iniciada! Boa sorte!`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isSystem: true
+        })
+        scrollToBottom()
+      }
+    }
+  )
 
   // Initialize previous marked counts for off-screen flashes
   const cards = gameStore.ticketMatrix?.cards || []
   prevMarkedCounts.value = cards.map((card) => getCardMarkedCount(card))
-
-  // Start simulated chat messages
-  chatInterval = window.setInterval(() => {
-    const randomIndex = Math.floor(Math.random() * randomChats.length)
-    const chatTemplate = randomChats[randomIndex]
-    
-    const now = new Date()
-    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-    
-    chatMessages.value.push({
-      id: Date.now(),
-      sender: chatTemplate.sender,
-      text: chatTemplate.text,
-      time: timeStr,
-      isSystem: chatTemplate.isSystem
-    })
-    
-    // Cap chat messages to prevent performance degradation
-    if (chatMessages.value.length > 50) {
-      chatMessages.value.shift()
-    }
-    
-    scrollToBottom()
-  }, 9000) // append message every 9 seconds
 })
 
 onUnmounted(() => {
-  if (chatInterval) {
-    clearInterval(chatInterval)
-  }
   // Cleanly disconnect WebSocket when the player leaves the room
   gameStore.disconnectFromGame()
 })
@@ -890,18 +1020,9 @@ async function triggerClaimBingo() {
 function sendChatMessage() {
   if (!userChatMessage.value.trim()) return
   
-  const now = new Date()
-  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-  
-  chatMessages.value.push({
-    id: Date.now(),
-    sender: 'Você',
-    text: userChatMessage.value,
-    time: timeStr
-  })
+  gameStore.sendChatMessage(userChatMessage.value)
   
   userChatMessage.value = ''
-  scrollToBottom()
 }
 
 function scrollToBottom() {
@@ -1149,11 +1270,16 @@ watch(activeTab, (newTab) => {
 
 .pattern-cell-preview {
   aspect-ratio: 1;
-  background: #ffd600;
+  background: #1c2541;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.pattern-cell-preview.pattern-highlight {
+  background: #ffd600;
 }
 
 .pattern-cell-preview.pattern-center {
@@ -1707,5 +1833,27 @@ watch(activeTab, (newTab) => {
 .hover-scale-up:hover {
   transform: scale(1.05);
   box-shadow: 0 10px 20px rgba(245, 158, 11, 0.4) !important;
+}
+
+.next-round-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(11, 19, 43, 0.92);
+  backdrop-filter: blur(10px);
+  z-index: 15;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 214, 0, 0.25);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

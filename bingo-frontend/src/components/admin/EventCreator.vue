@@ -74,6 +74,15 @@
               color="primary"
               :rules="[v => !!v || 'A hora é obrigatória']"
               required
+              class="mb-4"
+            ></v-text-field>
+
+            <v-text-field
+              v-model="youtubeUrl"
+              label="Link da Transmissão (YouTube)"
+              placeholder="Ex: https://www.youtube.com/watch?v=..."
+              variant="outlined"
+              color="primary"
               class="mb-6"
             ></v-text-field>
 
@@ -259,6 +268,7 @@ const isFormValid = ref(false)
 const title = ref('')
 const eventDate = ref('')
 const eventTime = ref('')
+const youtubeUrl = ref('')
 const activePanel = ref<number[]>([0])
 
 // Define structured options
@@ -361,6 +371,7 @@ const submitForm = async () => {
   const payload: CreateEventRequest = {
     title: title.value,
     scheduledAt,
+    youtubeUrl: youtubeUrl.value || undefined,
     rounds: rounds.map(r => ({
       roundNumber: r.roundNumber,
       prizes: r.prizes.map(p => ({

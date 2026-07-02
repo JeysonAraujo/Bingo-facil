@@ -9,4 +9,5 @@ import java.util.UUID;
 @Repository
 public interface ClaimRepository extends JpaRepository<Claim, UUID> {
     List<Claim> findByRoundId(UUID roundId);
+    boolean existsByRoundIdAndTicketIdAndCardIndex(UUID roundId, UUID ticketId, Integer cardIndex);
 }
