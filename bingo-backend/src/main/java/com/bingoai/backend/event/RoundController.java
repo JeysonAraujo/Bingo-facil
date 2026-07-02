@@ -11,6 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.lang.NonNull;
 
 @RestController
 @RequestMapping("/api/v1/rounds")
@@ -30,7 +31,7 @@ public class RoundController {
 
     @PostMapping("/{roundId}/start")
     @Transactional
-    public ResponseEntity<ApiResponse<String>> startRound(@PathVariable UUID roundId) {
+    public ResponseEntity<ApiResponse<String>> startRound(@PathVariable @NonNull UUID roundId) {
         Round round = roundRepository.findById(roundId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Round not found"));
 
@@ -62,7 +63,7 @@ public class RoundController {
 
     @PostMapping("/{roundId}/finish")
     @Transactional
-    public ResponseEntity<ApiResponse<String>> finishRound(@PathVariable UUID roundId) {
+    public ResponseEntity<ApiResponse<String>> finishRound(@PathVariable @NonNull UUID roundId) {
         Round round = roundRepository.findById(roundId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Round not found"));
 
@@ -76,7 +77,7 @@ public class RoundController {
 
     @PostMapping("/{roundId}/cancel")
     @Transactional
-    public ResponseEntity<ApiResponse<String>> cancelRound(@PathVariable UUID roundId) {
+    public ResponseEntity<ApiResponse<String>> cancelRound(@PathVariable @NonNull UUID roundId) {
         Round round = roundRepository.findById(roundId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Round not found"));
 
@@ -93,11 +94,11 @@ public class RoundController {
 
     @DeleteMapping("/{roundId}")
     @Transactional
-    public ResponseEntity<ApiResponse<String>> deleteRound(@PathVariable UUID roundId) {
-        Round round = roundRepository.findById(roundId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Round not found"));
-
-        roundRepository.delete(round);
+    public ResponseEntity<ApiResponse<String>> deleteRound(@PathVariable @NonNull UUID roundId) {
+        if (!roundRepository.existsById(roundId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Round not found");
+        }
+        roundRepository.deleteById(roundId);
 
         return ResponseEntity.ok(ApiResponse.success("Round deleted successfully"));
     }

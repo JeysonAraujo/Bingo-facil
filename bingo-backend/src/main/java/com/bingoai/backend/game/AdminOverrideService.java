@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.lang.NonNull;
 
 @Service
 @Transactional
@@ -42,7 +43,7 @@ public class AdminOverrideService {
      * Toggles a forced number marking (override) on a specific ticket card.
      * Guaranteed to persist and return the updated collection of overrides.
      */
-    public List<Integer> applyOverride(UUID ticketId, int ballNumber, String action) {
+    public List<Integer> applyOverride(@NonNull UUID ticketId, int ballNumber, String action) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Cartela não encontrada com o ID: " + ticketId));
 

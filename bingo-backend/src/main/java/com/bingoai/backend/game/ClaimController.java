@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.lang.NonNull;
 
 @RestController
 @RequestMapping("/api/v1/claims")
@@ -50,7 +51,7 @@ public class ClaimController {
     @PostMapping
     public ResponseEntity<ApiResponse<ClaimResponseDto>> submitClaim(@Valid @RequestBody ClaimRequestDto request) {
         // 1. Fetch ticket and validate
-        Ticket ticket = ticketRepository.findById(request.getTicketId())
+        Ticket ticket = ticketRepository.findById(java.util.Objects.requireNonNull(request.getTicketId()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
 
         if (ticket.getSessionToken() == null || !ticket.getSessionToken().equals(request.getSessionToken())) {
@@ -78,7 +79,7 @@ public class ClaimController {
 
         // 5. Get active round patterns
         List<String> patterns = round.getPrizes().stream()
-                .map(Prize::getDrawPattern)
+                .map(p -> p.getDrawPattern())
                 .collect(Collectors.toList());
 
         // Fallback to FULL_CARD if no patterns are explicitly configured
@@ -123,7 +124,7 @@ public class ClaimController {
     }
 
     @GetMapping("/round/{roundId}")
-    public ResponseEntity<ApiResponse<List<ClaimResponseDto>>> getClaimsByRound(@PathVariable UUID roundId) {
+    public ResponseEntity<ApiResponse<List<ClaimResponseDto>>> getClaimsByRound(@PathVariable @NonNull UUID roundId) {
         List<Claim> claims = claimRepository.findByRoundId(roundId);
         List<ClaimResponseDto> dtos = claims.stream()
                 .map(c -> new ClaimResponseDto(
@@ -140,7 +141,7 @@ public class ClaimController {
     }
 
     @PostMapping("/{id}/approve")
-    public ResponseEntity<ApiResponse<ClaimResponseDto>> approveClaim(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<ClaimResponseDto>> approveClaim(@PathVariable @NonNull UUID id) {
         Claim claim = claimRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Claim not found"));
 
@@ -178,7 +179,7 @@ public class ClaimController {
     }
 
     @PostMapping("/{id}/reject")
-    public ResponseEntity<ApiResponse<ClaimResponseDto>> rejectClaim(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<ClaimResponseDto>> rejectClaim(@PathVariable @NonNull UUID id) {
         Claim claim = claimRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Claim not found"));
 

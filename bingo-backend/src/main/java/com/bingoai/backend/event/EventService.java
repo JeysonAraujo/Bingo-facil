@@ -84,7 +84,7 @@ public class EventService {
     }
 
     @Transactional
-    public EventResponseDto updateEvent(UUID id, CreateEventRequest request) {
+    public EventResponseDto updateEvent(@NonNull UUID id, CreateEventRequest request) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + id));
         event.setTitle(request.getTitle());
@@ -95,7 +95,7 @@ public class EventService {
     }
 
     @Transactional
-    public EventResponseDto addRoundToEvent(UUID eventId, CreateRoundRequest request) {
+    public EventResponseDto addRoundToEvent(@NonNull UUID eventId, CreateRoundRequest request) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
         
@@ -116,7 +116,7 @@ public class EventService {
     }
 
     @Transactional
-    public EventResponseDto updateRound(UUID eventId, UUID roundId, CreateRoundRequest request) {
+    public EventResponseDto updateRound(@NonNull UUID eventId, @NonNull UUID roundId, CreateRoundRequest request) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
         
@@ -143,7 +143,7 @@ public class EventService {
     }
 
     @Transactional
-    public EventResponseDto updateEventStatus(UUID id, String status) {
+    public EventResponseDto updateEventStatus(@NonNull UUID id, String status) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + id));
         event.setStatus(status.toUpperCase());
@@ -152,7 +152,7 @@ public class EventService {
     }
 
     @Transactional
-    public void deleteEvent(UUID id) {
+    public void deleteEvent(@NonNull UUID id) {
         if (!eventRepository.existsById(id)) {
             throw new IllegalArgumentException("Event not found with ID: " + id);
         }
@@ -160,7 +160,7 @@ public class EventService {
     }
 
     @Transactional
-    public EventResponseDto saveHeaderImage(UUID eventId, MultipartFile file) {
+    public EventResponseDto saveHeaderImage(@NonNull UUID eventId, MultipartFile file) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
         
@@ -177,7 +177,11 @@ public class EventService {
                 uploadDir.mkdirs();
             }
             
-            String filename = eventId.toString() + "_" + file.getOriginalFilename().replaceAll("[^a-zA-Z0-9.-]", "_");
+            String originalName = file.getOriginalFilename();
+            if (originalName == null) {
+                originalName = "header";
+            }
+            String filename = eventId.toString() + "_" + originalName.replaceAll("[^a-zA-Z0-9.-]", "_");
             java.io.File destFile = new java.io.File(uploadDir.getAbsolutePath(), filename);
             file.transferTo(destFile);
             
