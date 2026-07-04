@@ -6,6 +6,7 @@ import com.bingoai.backend.event.Round;
 import com.bingoai.backend.game.dto.BingoClaimMessage;
 import com.bingoai.backend.ticket.Ticket;
 import com.bingoai.backend.ticket.TicketRepository;
+import com.bingoai.backend.admin.Admin;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Collections;
@@ -23,6 +26,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -43,10 +47,22 @@ public class ClaimControllerTests {
     private GameService gameService;
 
     @MockBean
+    private com.bingoai.backend.admin.AdminSessionRepository adminSessionRepository;
+
+    @MockBean
     private WinVerificationEngine winVerificationEngine;
 
     @MockBean
     private SimpMessagingTemplate messagingTemplate;
+
+    private UsernamePasswordAuthenticationToken getMockPrincipal() {
+        Admin mockAdmin = new Admin();
+        mockAdmin.setUsername("admin");
+        mockAdmin.setRole("ROLE_SUPER_ADMIN");
+        return new UsernamePasswordAuthenticationToken(
+                mockAdmin, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
+        );
+    }
 
     @Test
     public void testGetClaimsByRound_Success() throws Exception {
@@ -68,6 +84,7 @@ public class ClaimControllerTests {
                 .thenReturn(Collections.singletonList(claim));
 
         mockMvc.perform(get("/api/v1/claims/round/" + roundId)
+                .with(authentication(getMockPrincipal()))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -105,6 +122,7 @@ public class ClaimControllerTests {
         Mockito.when(claimRepository.save(any(Claim.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         mockMvc.perform(post("/api/v1/claims/" + claimId + "/approve")
+                .with(authentication(getMockPrincipal()))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -144,6 +162,7 @@ public class ClaimControllerTests {
         Mockito.when(claimRepository.save(any(Claim.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         mockMvc.perform(post("/api/v1/claims/" + claimId + "/reject")
+                .with(authentication(getMockPrincipal()))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))

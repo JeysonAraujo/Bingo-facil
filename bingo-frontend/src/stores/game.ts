@@ -61,7 +61,8 @@ export const useGameStore = defineStore('game', {
     winnerSerial: null as string | null,
     winnerCardIndex: null as number | null,
     showVictoryOverlay: false,
-    activeViewers: 0
+    activeViewers: 0,
+    isBingoFinished: false
   }),
 
   getters: {
@@ -253,6 +254,13 @@ export const useGameStore = defineStore('game', {
         },
         (viewers: number) => {
           this.activeViewers = viewers
+        },
+        undefined, // onNaBoa (not used by player)
+        (status: string) => {
+          if (status === 'FINALIZADO') {
+            this.isBingoFinished = true
+            this.disconnectFromGame()
+          }
         }
       )
     },

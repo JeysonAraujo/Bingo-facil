@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import api, { type ApiResponse, type EventResponseDto, type CreateEventRequest } from '../services/api'
 import { createWebSocketClient } from '../services/websocket'
+import { useAuthStore } from './auth'
 
 export const useAdminStore = defineStore('admin', {
   state: () => ({
@@ -14,7 +15,8 @@ export const useAdminStore = defineStore('admin', {
     latencySeconds: 0,
     _wsAdminClient: null as any,
     searchedTicket: null as any, // TicketResponseDto for overrides
-    claims: [] as any[]
+    claims: [] as any[],
+    ticketsNaBoaCount: 0
   }),
 
   actions: {
@@ -290,9 +292,10 @@ export const useAdminStore = defineStore('admin', {
         this._wsAdminClient = null
       }
 
+      const authStore = useAuthStore()
       this._wsAdminClient = createWebSocketClient(
         eventId,
-        null, // No session token required for admin
+        authStore.token, // Pass admin token for backend STOMP authentication
         (ball) => {
           if (!this.drawnConsoleNumbers.includes(ball.ballNumber)) {
             this.drawnConsoleNumbers.push(ball.ballNumber)
@@ -340,7 +343,12 @@ export const useAdminStore = defineStore('admin', {
           }
           if (roundMsg.status === 'IN_PROGRESS') {
             this.drawnConsoleNumbers = []
+            this.ticketsNaBoaCount = 0
           }
+        },
+        undefined, // onViewersChange
+        (count) => {
+          this.ticketsNaBoaCount = count
         }
       )
     },

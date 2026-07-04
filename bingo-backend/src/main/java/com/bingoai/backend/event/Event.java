@@ -38,6 +38,10 @@ public class Event {
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Round> rounds = new ArrayList<>();
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "admin_id")
+    private com.bingoai.backend.admin.Admin admin;
+
     public Event() {
     }
 
@@ -123,5 +127,13 @@ public class Event {
 
     public void setHeaderImageUrl(String headerImageUrl) {
         this.headerImageUrl = headerImageUrl;
+    }
+
+    public com.bingoai.backend.admin.Admin getAdmin() {
+        return admin;
+    }
+
+    public void setAdmin(com.bingoai.backend.admin.Admin admin) {
+        this.admin = admin;
     }
 }

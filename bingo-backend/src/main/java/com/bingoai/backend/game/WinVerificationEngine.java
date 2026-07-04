@@ -176,4 +176,122 @@ public class WinVerificationEngine {
         }
         return true;
     }
+
+    public int getDistanceToWin(CardMatrix card, Set<Integer> markedNumbers, List<String> patterns) {
+        if (card == null || patterns == null || patterns.isEmpty()) {
+            return Integer.MAX_VALUE;
+        }
+
+        int minDistance = Integer.MAX_VALUE;
+        for (String pattern : patterns) {
+            int dist = getPatternDistance(card, markedNumbers, pattern);
+            if (dist < minDistance) {
+                minDistance = dist;
+            }
+        }
+        return minDistance;
+    }
+
+    private int getPatternDistance(CardMatrix card, Set<Integer> markedNumbers, String pattern) {
+        if (pattern == null) return Integer.MAX_VALUE;
+
+        switch (pattern.toUpperCase()) {
+            case "LINE":
+            case "ANY_LINE":
+                return getDistanceLine(card, markedNumbers);
+            case "COLUMN":
+            case "ANY_COLUMN":
+                return getDistanceColumn(card, markedNumbers);
+            case "DIAGONAL":
+                return getDistanceDiagonal(card, markedNumbers);
+            case "OUTER_BORDER":
+            case "JANELÃO":
+            case "JANELAO":
+                return getDistanceOuterBorder(card, markedNumbers);
+            case "INNER_BORDER":
+            case "JANELINHA":
+                return getDistanceInnerBorder(card, markedNumbers);
+            case "FULL_CARD":
+            case "FULL_GRID":
+            case "BINGO_CHEIO":
+                return getDistanceFullCard(card, markedNumbers);
+            default:
+                return Integer.MAX_VALUE;
+        }
+    }
+
+    private int getDistanceLine(CardMatrix card, Set<Integer> marked) {
+        int minMisses = Integer.MAX_VALUE;
+        for (int row = 0; row < 5; row++) {
+            int misses = 0;
+            for (int col = 0; col < 5; col++) {
+                if (!isCellMarked(card, marked, row, col)) misses++;
+            }
+            if (misses < minMisses) minMisses = misses;
+        }
+        return minMisses;
+    }
+
+    private int getDistanceColumn(CardMatrix card, Set<Integer> marked) {
+        int minMisses = Integer.MAX_VALUE;
+        for (int col = 0; col < 5; col++) {
+            int misses = 0;
+            for (int row = 0; row < 5; row++) {
+                if (!isCellMarked(card, marked, row, col)) misses++;
+            }
+            if (misses < minMisses) minMisses = misses;
+        }
+        return minMisses;
+    }
+
+    private int getDistanceDiagonal(CardMatrix card, Set<Integer> marked) {
+        int mainMisses = 0;
+        for (int i = 0; i < 5; i++) {
+            if (!isCellMarked(card, marked, i, i)) mainMisses++;
+        }
+        int antiMisses = 0;
+        for (int i = 0; i < 5; i++) {
+            if (!isCellMarked(card, marked, i, 4 - i)) antiMisses++;
+        }
+        return Math.min(mainMisses, antiMisses);
+    }
+
+    private int getDistanceOuterBorder(CardMatrix card, Set<Integer> marked) {
+        int misses = 0;
+        for (int col = 0; col < 5; col++) {
+            if (!isCellMarked(card, marked, 0, col)) misses++;
+            if (!isCellMarked(card, marked, 4, col)) misses++;
+        }
+        for (int row = 1; row <= 3; row++) {
+            if (!isCellMarked(card, marked, row, 0)) misses++;
+            if (!isCellMarked(card, marked, row, 4)) misses++;
+        }
+        return misses;
+    }
+
+    private int getDistanceInnerBorder(CardMatrix card, Set<Integer> marked) {
+        int misses = 0;
+        if (!isCellMarked(card, marked, 1, 1)) misses++;
+        if (!isCellMarked(card, marked, 1, 2)) misses++;
+        if (!isCellMarked(card, marked, 1, 3)) misses++;
+        
+        if (!isCellMarked(card, marked, 2, 1)) misses++;
+        if (!isCellMarked(card, marked, 2, 3)) misses++;
+        
+        if (!isCellMarked(card, marked, 3, 1)) misses++;
+        if (!isCellMarked(card, marked, 3, 2)) misses++;
+        if (!isCellMarked(card, marked, 3, 3)) misses++;
+        
+        return misses;
+    }
+
+    private int getDistanceFullCard(CardMatrix card, Set<Integer> marked) {
+        int misses = 0;
+        for (int row = 0; row < 5; row++) {
+            for (int col = 0; col < 5; col++) {
+                if (!isCellMarked(card, marked, row, col)) misses++;
+            }
+        }
+        return misses;
+    }
 }

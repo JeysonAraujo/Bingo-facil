@@ -117,11 +117,15 @@ public class GameService {
 
         List<com.bingoai.backend.ticket.Ticket> activeTickets = ticketRepository.findByEventIdAndActivatedTrue(eventId);
 
+        int naBoaCount = 0;
+
         for (com.bingoai.backend.ticket.Ticket ticket : activeTickets) {
             java.util.Set<Integer> ticketMarked = new java.util.HashSet<>(marked);
             if (ticket.getMarkedOverrides() != null) {
                 ticketMarked.addAll(ticket.getMarkedOverrides());
             }
+
+            boolean isTicketNaBoa = false;
 
             List<com.bingoai.backend.ticket.CardMatrix> cards = ticket.getMatrix().getCards();
             for (int cardIndex = 0; cardIndex < cards.size(); cardIndex++) {
@@ -146,10 +150,24 @@ public class GameService {
                                 "/topic/events/" + eventId + "/claims",
                                 claimMessage
                         );
+                    } else if (!isTicketNaBoa) {
+                        int distance = winVerificationEngine.getDistanceToWin(card, ticketMarked, patterns);
+                        if (distance == 1) {
+                            isTicketNaBoa = true;
+                        }
                     }
                 }
             }
+            if (isTicketNaBoa) {
+                naBoaCount++;
+            }
         }
+
+        com.bingoai.backend.game.dto.NaBoaMessage naBoaMessage = new com.bingoai.backend.game.dto.NaBoaMessage(naBoaCount);
+        messagingTemplate.convertAndSend(
+                "/topic/events/" + eventId + "/na-boa",
+                naBoaMessage
+        );
     }
 
     /**
@@ -181,5 +199,33 @@ public class GameService {
                 "/topic/events/" + eventId + "/delay",
                 message
         );
+    }
+
+    @Transactional(readOnly = true)
+    public boolean checkEventAdmin(UUID eventId, com.bingoai.backend.admin.Admin admin) {
+        if (admin == null) {
+            return false;
+        }
+        if ("ROLE_SUPER_ADMIN".equals(admin.getRole())) {
+            return true;
+        }
+        Event event = eventRepository.findById(eventId).orElse(null);
+        return event != null && event.getAdmin() != null && event.getAdmin().getId().equals(admin.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public boolean checkTicketAdmin(UUID ticketId, com.bingoai.backend.admin.Admin admin) {
+        if (admin == null) {
+            return false;
+        }
+        if ("ROLE_SUPER_ADMIN".equals(admin.getRole())) {
+            return true;
+        }
+        com.bingoai.backend.ticket.Ticket ticket = ticketRepository.findById(ticketId).orElse(null);
+        if (ticket == null) {
+            return false;
+        }
+        Event event = ticket.getEvent();
+        return event != null && event.getAdmin() != null && event.getAdmin().getId().equals(admin.getId());
     }
 }

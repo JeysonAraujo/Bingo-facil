@@ -1,9 +1,11 @@
 package com.bingoai.backend.event;
 
 import com.bingoai.backend.event.dto.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -16,17 +18,36 @@ import org.springframework.lang.NonNull;
 public class EventService {
 
     private final EventRepository eventRepository;
+    private final com.bingoai.backend.ticket.TicketRepository ticketRepository;
+    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
-    public EventService(EventRepository eventRepository) {
+    public EventService(EventRepository eventRepository,
+                        com.bingoai.backend.ticket.TicketRepository ticketRepository,
+                        org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate) {
         this.eventRepository = eventRepository;
+        this.ticketRepository = ticketRepository;
+        this.messagingTemplate = messagingTemplate;
+    }
+
+    private void validateOwnership(Event event, com.bingoai.backend.admin.Admin admin) {
+        if (admin == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Acesso não autorizado.");
+        }
+        if ("ROLE_SUPER_ADMIN".equals(admin.getRole())) {
+            return;
+        }
+        if (event.getAdmin() == null || !event.getAdmin().getId().equals(admin.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Você não tem permissão para acessar este evento.");
+        }
     }
 
     @Transactional
-    public EventResponseDto createEvent(CreateEventRequest request) {
+    public EventResponseDto createEvent(CreateEventRequest request, com.bingoai.backend.admin.Admin admin) {
         Event event = new Event();
         event.setTitle(request.getTitle());
         event.setScheduledAt(request.getScheduledAt());
         event.setYoutubeUrl(request.getYoutubeUrl());
+        event.setAdmin(admin);
 
         if (request.getRounds() != null) {
             for (CreateRoundRequest roundReq : request.getRounds()) {
@@ -50,8 +71,19 @@ public class EventService {
         return mapToResponseDto(savedEvent);
     }
 
-    public List<EventResponseDto> getAllEvents() {
-        return eventRepository.findAll().stream()
+    public List<EventResponseDto> getAllEvents(com.bingoai.backend.admin.Admin admin) {
+        if (admin == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Acesso não autorizado.");
+        }
+        
+        List<Event> events;
+        if ("ROLE_SUPER_ADMIN".equals(admin.getRole())) {
+            events = eventRepository.findAll();
+        } else {
+            events = eventRepository.findByAdminId(admin.getId());
+        }
+
+        return events.stream()
                 .map(this::mapToResponseDto)
                 .collect(Collectors.toList());
     }
@@ -79,14 +111,17 @@ public class EventService {
                 event.getYoutubeUrl(),
                 event.getStatus(),
                 event.getHeaderImageUrl(),
-                roundDtos
+                roundDtos,
+                event.getAdmin() != null ? event.getAdmin().getUsername() : null
         );
     }
 
     @Transactional
-    public EventResponseDto updateEvent(@NonNull UUID id, CreateEventRequest request) {
+    public EventResponseDto updateEvent(@NonNull UUID id, CreateEventRequest request, com.bingoai.backend.admin.Admin admin) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + id));
+        validateOwnership(event, admin);
+        
         event.setTitle(request.getTitle());
         event.setScheduledAt(request.getScheduledAt());
         event.setYoutubeUrl(request.getYoutubeUrl());
@@ -95,9 +130,10 @@ public class EventService {
     }
 
     @Transactional
-    public EventResponseDto addRoundToEvent(@NonNull UUID eventId, CreateRoundRequest request) {
+    public EventResponseDto addRoundToEvent(@NonNull UUID eventId, CreateRoundRequest request, com.bingoai.backend.admin.Admin admin) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
+        validateOwnership(event, admin);
         
         Round round = new Round();
         round.setRoundNumber(request.getRoundNumber());
@@ -116,9 +152,10 @@ public class EventService {
     }
 
     @Transactional
-    public EventResponseDto updateRound(@NonNull UUID eventId, @NonNull UUID roundId, CreateRoundRequest request) {
+    public EventResponseDto updateRound(@NonNull UUID eventId, @NonNull UUID roundId, CreateRoundRequest request, com.bingoai.backend.admin.Admin admin) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
+        validateOwnership(event, admin);
         
         Round targetRound = event.getRounds().stream()
                 .filter(r -> r.getId().equals(roundId))
@@ -143,26 +180,42 @@ public class EventService {
     }
 
     @Transactional
-    public EventResponseDto updateEventStatus(@NonNull UUID id, String status) {
+    public EventResponseDto updateEventStatus(@NonNull UUID id, String status, com.bingoai.backend.admin.Admin admin) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + id));
+        validateOwnership(event, admin);
+        
         event.setStatus(status.toUpperCase());
         Event saved = eventRepository.save(event);
+        
+        if ("FINALIZADO".equals(saved.getStatus())) {
+            // Send STOMP message before invalidating tokens
+            messagingTemplate.convertAndSend(
+                    "/topic/events/" + id + "/status",
+                    new com.bingoai.backend.game.dto.StatusMessage("FINALIZADO")
+            );
+            
+            ticketRepository.invalidateTokensForEvent(id);
+            System.out.println("[EventService] Invalidated all ticket session tokens for finalized event " + id);
+        }
+        
         return mapToResponseDto(saved);
     }
 
     @Transactional
-    public void deleteEvent(@NonNull UUID id) {
-        if (!eventRepository.existsById(id)) {
-            throw new IllegalArgumentException("Event not found with ID: " + id);
-        }
-        eventRepository.deleteById(id);
+    public void deleteEvent(@NonNull UUID id, com.bingoai.backend.admin.Admin admin) {
+        Event event = eventRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + id));
+        validateOwnership(event, admin);
+        
+        eventRepository.delete(event);
     }
 
     @Transactional
-    public EventResponseDto saveHeaderImage(@NonNull UUID eventId, MultipartFile file) {
+    public EventResponseDto saveHeaderImage(@NonNull UUID eventId, MultipartFile file, com.bingoai.backend.admin.Admin admin) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
+        validateOwnership(event, admin);
         
         if (file.isEmpty()) {
             throw new IllegalArgumentException("Uploaded file is empty");

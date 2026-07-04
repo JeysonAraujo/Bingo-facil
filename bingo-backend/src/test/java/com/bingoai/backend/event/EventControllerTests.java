@@ -3,6 +3,7 @@ package com.bingoai.backend.event;
 import com.bingoai.backend.common.config.SecurityConfig;
 import com.bingoai.backend.event.dto.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.bingoai.backend.admin.Admin;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.OffsetDateTime;
@@ -18,6 +21,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -31,8 +35,20 @@ public class EventControllerTests {
     @MockBean
     private EventService eventService;
 
+    @MockBean
+    private com.bingoai.backend.admin.AdminSessionRepository adminSessionRepository;
+
     @Autowired
     private ObjectMapper objectMapper;
+
+    private UsernamePasswordAuthenticationToken getMockPrincipal() {
+        Admin mockAdmin = new Admin();
+        mockAdmin.setUsername("admin");
+        mockAdmin.setRole("ROLE_SUPER_ADMIN");
+        return new UsernamePasswordAuthenticationToken(
+                mockAdmin, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
+        );
+    }
 
     @Test
     @SuppressWarnings("null")
@@ -57,6 +73,10 @@ public class EventControllerTests {
                 request.getTitle(),
                 request.getScheduledAt(),
                 OffsetDateTime.now(),
+                0,
+                null,
+                "AGUARDANDO",
+                null,
                 Collections.singletonList(
                         new RoundResponseDto(
                                 UUID.randomUUID(),
@@ -66,12 +86,14 @@ public class EventControllerTests {
                                         new PrizeResponseDto(UUID.randomUUID(), "TV 50 Polegadas", "FULL_CARD", "FULL_GRID")
                                 )
                         )
-                )
+                ),
+                null
         );
 
-        Mockito.when(eventService.createEvent(any(CreateEventRequest.class))).thenReturn(responseDto);
+        Mockito.when(eventService.createEvent(any(CreateEventRequest.class), any(Admin.class))).thenReturn(responseDto);
 
         mockMvc.perform(post("/api/v1/events")
+                .with(authentication(getMockPrincipal()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -88,6 +110,7 @@ public class EventControllerTests {
         // Title is blank, which fails @NotBlank validation constraint
 
         mockMvc.perform(post("/api/v1/events")
+                .with(authentication(getMockPrincipal()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())

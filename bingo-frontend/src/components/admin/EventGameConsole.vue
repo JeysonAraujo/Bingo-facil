@@ -22,6 +22,17 @@
       </div>
 
       <div class="d-flex gap-3 align-center">
+        <!-- Na Boa Indicator -->
+        <v-chip
+          v-if="adminStore.ticketsNaBoaCount > 0"
+          color="amber-darken-2"
+          variant="flat"
+          class="font-weight-black text-slate-950 px-4 py-2 shadow-2xl pulse-dot-na-boa"
+        >
+          <v-icon start icon="mdi-fire"></v-icon>
+          {{ adminStore.ticketsNaBoaCount }} Cartelas na Boa!
+        </v-chip>
+
         <!-- WebSocket Admin connection badge status -->
         <div class="status-indicator d-flex align-center gap-2 px-4 py-2 rounded-pill bg-slate-800 border-slate-700">
           <span class="pulse-dot" :class="{ 'dot--connected': isConnected }"></span>

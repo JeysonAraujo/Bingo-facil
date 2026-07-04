@@ -76,7 +76,9 @@ export function createWebSocketClient(
   onClaim?: (claim: any) => void,
   onChatMessage?: (chat: any) => void,
   onRoundStatusChange?: (round: any) => void,
-  onViewersChange?: (viewers: number) => void
+  onViewersChange?: (viewers: number) => void,
+  onNaBoa?: (count: number) => void,
+  onEventStatus?: (status: string) => void
 ): Client {
   const client = new Client({
     // SockJS factory: provides HTTP long-polling fallback automatically
@@ -198,6 +200,32 @@ export function createWebSocketClient(
             onViewersChange(envelope.viewerCount)
           } catch (e) {
             console.error('[WebSocket] Failed to parse viewers message:', e)
+          }
+        })
+      }
+
+      if (onNaBoa) {
+        client.subscribe(`/topic/events/${eventId}/na-boa`, (msg: IMessage) => {
+          try {
+            const envelope = JSON.parse(msg.body)
+            if (envelope && envelope.count !== undefined) {
+              onNaBoa(envelope.count)
+            }
+          } catch (e) {
+            console.error('[WebSocket] Failed to parse na-boa message:', e)
+          }
+        })
+      }
+
+      if (onEventStatus) {
+        client.subscribe(`/topic/events/${eventId}/status`, (msg: IMessage) => {
+          try {
+            const envelope = JSON.parse(msg.body)
+            if (envelope && envelope.status) {
+              onEventStatus(envelope.status)
+            }
+          } catch (e) {
+            console.error('[WebSocket] Failed to parse event status message:', e)
           }
         })
       }

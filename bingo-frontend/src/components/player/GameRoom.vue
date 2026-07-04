@@ -386,6 +386,31 @@
         </div>
       </v-card>
     </v-dialog>
+
+    <!-- Bingo Finished Modal (Epic 3) -->
+    <v-dialog v-model="gameStore.isBingoFinished" max-width="500" persistent rounded="xl">
+      <v-card class="text-center pa-6" color="#0b1329" theme="dark">
+        <div class="mb-4">
+          <v-icon color="amber-darken-2" size="64">mdi-party-popper</v-icon>
+        </div>
+        <v-card-title class="text-h5 font-weight-bold text-white mb-2 text-wrap">
+          Bingo Encerrado!
+        </v-card-title>
+        <v-card-text class="text-slate-300 text-wrap">
+          Obrigado por participar! Este evento de bingo chegou ao fim. Fique de olho para os próximos eventos.
+        </v-card-text>
+        <v-card-actions class="justify-center mt-4">
+          <v-btn
+            color="amber-darken-2"
+            variant="flat"
+            class="px-8 py-2 rounded-pill font-weight-bold text-slate-950 text-capitalize"
+            @click="handleLogout"
+          >
+            Sair e Voltar ao Início
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-app>
 </template>
 

@@ -24,14 +24,17 @@ public class EventController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<EventResponseDto>> createEvent(@Valid @RequestBody CreateEventRequest request) {
-        EventResponseDto createdEvent = eventService.createEvent(request);
+    public ResponseEntity<ApiResponse<EventResponseDto>> createEvent(
+            @Valid @RequestBody CreateEventRequest request,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
+        EventResponseDto createdEvent = eventService.createEvent(request, admin);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(createdEvent));
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<EventResponseDto>>> getAllEvents() {
-        List<EventResponseDto> events = eventService.getAllEvents();
+    public ResponseEntity<ApiResponse<List<EventResponseDto>>> getAllEvents(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
+        List<EventResponseDto> events = eventService.getAllEvents(admin);
         return ResponseEntity.ok(ApiResponse.success(events));
     }
 
@@ -47,22 +50,28 @@ public class EventController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<EventResponseDto>> updateEvent(@PathVariable @NonNull UUID id, @Valid @RequestBody CreateEventRequest request) {
-        EventResponseDto updated = eventService.updateEvent(id, request);
+    public ResponseEntity<ApiResponse<EventResponseDto>> updateEvent(
+            @PathVariable @NonNull UUID id,
+            @Valid @RequestBody CreateEventRequest request,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
+        EventResponseDto updated = eventService.updateEvent(id, request, admin);
         return ResponseEntity.ok(ApiResponse.success(updated));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteEvent(@PathVariable @NonNull UUID id) {
-        eventService.deleteEvent(id);
+    public ResponseEntity<ApiResponse<Void>> deleteEvent(
+            @PathVariable @NonNull UUID id,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
+        eventService.deleteEvent(id, admin);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @PostMapping("/{id}/rounds")
     public ResponseEntity<ApiResponse<EventResponseDto>> addRound(
             @PathVariable @NonNull UUID id,
-            @Valid @RequestBody com.bingoai.backend.event.dto.CreateRoundRequest request) {
-        EventResponseDto updated = eventService.addRoundToEvent(id, request);
+            @Valid @RequestBody com.bingoai.backend.event.dto.CreateRoundRequest request,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
+        EventResponseDto updated = eventService.addRoundToEvent(id, request, admin);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(updated));
     }
 
@@ -70,22 +79,27 @@ public class EventController {
     public ResponseEntity<ApiResponse<EventResponseDto>> updateRound(
             @PathVariable @NonNull UUID id,
             @PathVariable @NonNull UUID roundId,
-            @Valid @RequestBody com.bingoai.backend.event.dto.CreateRoundRequest request) {
-        EventResponseDto updated = eventService.updateRound(id, roundId, request);
+            @Valid @RequestBody com.bingoai.backend.event.dto.CreateRoundRequest request,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
+        EventResponseDto updated = eventService.updateRound(id, roundId, request, admin);
         return ResponseEntity.ok(ApiResponse.success(updated));
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<ApiResponse<EventResponseDto>> updateEventStatus(@PathVariable @NonNull UUID id, @RequestParam String status) {
-        EventResponseDto updated = eventService.updateEventStatus(id, status);
+    public ResponseEntity<ApiResponse<EventResponseDto>> updateEventStatus(
+            @PathVariable @NonNull UUID id,
+            @RequestParam String status,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
+        EventResponseDto updated = eventService.updateEventStatus(id, status, admin);
         return ResponseEntity.ok(ApiResponse.success(updated));
     }
 
     @PostMapping("/{id}/header-image")
     public ResponseEntity<ApiResponse<EventResponseDto>> uploadHeaderImage(
             @PathVariable @NonNull UUID id,
-            @RequestParam("file") MultipartFile file) {
-        EventResponseDto updated = eventService.saveHeaderImage(id, file);
+            @RequestParam("file") MultipartFile file,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
+        EventResponseDto updated = eventService.saveHeaderImage(id, file, admin);
         return ResponseEntity.ok(ApiResponse.success(updated));
     }
 }

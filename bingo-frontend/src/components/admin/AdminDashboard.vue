@@ -1,5 +1,41 @@
 <template>
   <v-container class="py-8">
+    <!-- User Info & Logout Top Bar -->
+    <v-row align="center" justify="space-between" class="mb-6 bg-indigo-darken-4 pa-4 rounded-xl text-white mx-0 elevation-2">
+      <div class="d-flex align-center">
+        <v-avatar color="indigo-lighten-4" class="mr-3">
+          <v-icon icon="mdi-account" color="indigo-darken-4"></v-icon>
+        </v-avatar>
+        <div>
+          <div class="text-subtitle-2 text-indigo-lighten-3 leading-none">Bem-vindo,</div>
+          <div class="text-h6 font-weight-bold leading-none">{{ authStore.username }}</div>
+        </div>
+        <v-chip size="x-small" color="indigo-lighten-4" variant="flat" class="ml-3 font-weight-bold text-indigo-darken-4 text-uppercase">
+          {{ authStore.role === 'ROLE_SUPER_ADMIN' ? 'SuperAdmin' : 'Admin' }}
+        </v-chip>
+      </div>
+      <div class="d-flex align-center">
+        <v-btn
+          v-if="authStore.isSuperAdmin"
+          color="amber-darken-2"
+          prepend-icon="mdi-account-plus"
+          class="mr-3 font-weight-bold text-white rounded-lg elevation-1"
+          to="/admin/register"
+        >
+          Cadastrar Admin
+        </v-btn>
+        <v-btn
+          color="indigo-lighten-1"
+          variant="flat"
+          prepend-icon="mdi-logout"
+          class="font-weight-bold text-white rounded-lg"
+          @click="handleLogout"
+        >
+          Sair
+        </v-btn>
+      </div>
+    </v-row>
+
     <!-- Header Area -->
     <v-row align="center" class="mb-6">
       <v-col cols="12" sm="8">
@@ -85,6 +121,12 @@
 
           <v-card-text class="py-4 flex-grow-1">
             <!-- Event Meta Data -->
+            <div v-if="authStore.isSuperAdmin && event.adminUsername" class="d-flex align-center mb-3">
+              <v-icon icon="mdi-account-tie" color="indigo-lighten-2" class="mr-2" size="20"></v-icon>
+              <span class="text-caption font-weight-bold text-indigo-darken-4">
+                Organizador: {{ event.adminUsername }}
+              </span>
+            </div>
             <div class="d-flex align-center mb-3">
               <v-icon icon="mdi-calendar-clock" color="primary" class="mr-2" size="20"></v-icon>
               <span class="text-body-2 font-weight-bold">
@@ -222,9 +264,18 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAdminStore } from '../../stores/admin'
+import { useAuthStore } from '../../stores/auth'
 
 const adminStore = useAdminStore()
+const authStore = useAuthStore()
+const router = useRouter()
+
+const handleLogout = async () => {
+  await authStore.logout()
+  router.push('/admin/login')
+}
 
 const editDialog = ref(false)
 const formValid = ref(false)

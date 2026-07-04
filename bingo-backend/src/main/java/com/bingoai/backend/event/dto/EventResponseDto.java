@@ -14,19 +14,20 @@ public class EventResponseDto {
     private List<RoundResponseDto> rounds;
     private String status;
     private String headerImageUrl;
+    private String adminUsername;
 
     public EventResponseDto() {
     }
 
     public EventResponseDto(UUID id, String title, OffsetDateTime scheduledAt, OffsetDateTime createdAt, List<RoundResponseDto> rounds) {
-        this(id, title, scheduledAt, createdAt, 0, null, "AGUARDANDO", null, rounds);
+        this(id, title, scheduledAt, createdAt, 0, null, "AGUARDANDO", null, rounds, null);
     }
 
     public EventResponseDto(UUID id, String title, OffsetDateTime scheduledAt, OffsetDateTime createdAt, Integer streamDelaySeconds, List<RoundResponseDto> rounds) {
-        this(id, title, scheduledAt, createdAt, streamDelaySeconds, null, "AGUARDANDO", null, rounds);
+        this(id, title, scheduledAt, createdAt, streamDelaySeconds, null, "AGUARDANDO", null, rounds, null);
     }
 
-    public EventResponseDto(UUID id, String title, OffsetDateTime scheduledAt, OffsetDateTime createdAt, Integer streamDelaySeconds, String youtubeUrl, String status, String headerImageUrl, List<RoundResponseDto> rounds) {
+    public EventResponseDto(UUID id, String title, OffsetDateTime scheduledAt, OffsetDateTime createdAt, Integer streamDelaySeconds, String youtubeUrl, String status, String headerImageUrl, List<RoundResponseDto> rounds, String adminUsername) {
         this.id = id;
         this.title = title;
         this.scheduledAt = scheduledAt;
@@ -36,6 +37,7 @@ public class EventResponseDto {
         this.status = status;
         this.headerImageUrl = headerImageUrl;
         this.rounds = rounds;
+        this.adminUsername = adminUsername;
     }
 
     public UUID getId() {
@@ -108,5 +110,13 @@ public class EventResponseDto {
 
     public void setHeaderImageUrl(String headerImageUrl) {
         this.headerImageUrl = headerImageUrl;
+    }
+
+    public String getAdminUsername() {
+        return adminUsername;
+    }
+
+    public void setAdminUsername(String adminUsername) {
+        this.adminUsername = adminUsername;
     }
 }

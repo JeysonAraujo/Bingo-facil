@@ -30,6 +30,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Value("${app.activation-base-url:http://localhost:3000}")
     private String allowedOrigin;
 
+    private final com.bingoai.backend.admin.AdminSessionRepository adminSessionRepository;
+
+    public WebSocketConfig(com.bingoai.backend.admin.AdminSessionRepository adminSessionRepository) {
+        this.adminSessionRepository = adminSessionRepository;
+    }
+
     @Override
     public void configureMessageBroker(@NonNull MessageBrokerRegistry config) {
         // Enable simple in-memory broker to route messages to /topic destinations
@@ -44,5 +50,46 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint("/ws/bingo")
                 .setAllowedOrigins(allowedOrigin)
                 .withSockJS();
+    }
+
+    @Override
+    public void configureClientInboundChannel(@NonNull org.springframework.messaging.simp.config.ChannelRegistration registration) {
+        registration.interceptors(new org.springframework.messaging.support.ChannelInterceptor() {
+            @Override
+            public org.springframework.messaging.Message<?> preSend(
+                    @NonNull org.springframework.messaging.Message<?> message,
+                    @NonNull org.springframework.messaging.MessageChannel channel) {
+                
+                org.springframework.messaging.simp.stomp.StompHeaderAccessor accessor =
+                        org.springframework.messaging.support.MessageHeaderAccessor.getAccessor(
+                                message, org.springframework.messaging.simp.stomp.StompHeaderAccessor.class);
+                
+                if (accessor != null && org.springframework.messaging.simp.stomp.StompCommand.CONNECT.equals(accessor.getCommand())) {
+                    String authHeader = accessor.getFirstNativeHeader("Authorization");
+                    if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                        String token = authHeader.substring(7);
+                        java.util.Optional<com.bingoai.backend.admin.AdminSession> sessionOpt =
+                                adminSessionRepository.findByToken(token);
+                        
+                        if (sessionOpt.isPresent()) {
+                            com.bingoai.backend.admin.AdminSession session = sessionOpt.get();
+                            if (session.getExpiresAt().isAfter(java.time.OffsetDateTime.now())) {
+                                com.bingoai.backend.admin.Admin admin = session.getAdmin();
+                                org.springframework.security.authentication.UsernamePasswordAuthenticationToken auth =
+                                        new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                                admin,
+                                                null,
+                                                java.util.Collections.singletonList(
+                                                        new org.springframework.security.core.authority.SimpleGrantedAuthority(admin.getRole())
+                                                )
+                                        );
+                                accessor.setUser(auth);
+                            }
+                        }
+                    }
+                }
+                return message;
+            }
+        });
     }
 }

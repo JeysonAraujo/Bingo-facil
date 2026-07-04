@@ -51,6 +51,30 @@ public class GameWebSocketController {
         this.profanityFilterService = profanityFilterService;
     }
 
+    private void validateAdminForEvent(java.security.Principal principal, String eventId) {
+        if (principal == null || !(principal instanceof org.springframework.security.authentication.UsernamePasswordAuthenticationToken)) {
+            throw new org.springframework.security.access.AccessDeniedException("Acesso não autorizado.");
+        }
+        com.bingoai.backend.admin.Admin admin = (com.bingoai.backend.admin.Admin) 
+                ((org.springframework.security.authentication.UsernamePasswordAuthenticationToken) principal).getPrincipal();
+        
+        if (!gameService.checkEventAdmin(UUID.fromString(eventId), admin)) {
+            throw new org.springframework.security.access.AccessDeniedException("Você não tem permissão para gerenciar este evento.");
+        }
+    }
+
+    private void validateAdminForTicket(java.security.Principal principal, String ticketId) {
+        if (principal == null || !(principal instanceof org.springframework.security.authentication.UsernamePasswordAuthenticationToken)) {
+            throw new org.springframework.security.access.AccessDeniedException("Acesso não autorizado.");
+        }
+        com.bingoai.backend.admin.Admin admin = (com.bingoai.backend.admin.Admin) 
+                ((org.springframework.security.authentication.UsernamePasswordAuthenticationToken) principal).getPrincipal();
+        
+        if (!gameService.checkTicketAdmin(UUID.fromString(ticketId), admin)) {
+            throw new org.springframework.security.access.AccessDeniedException("Você não tem permissão para gerenciar esta cartela.");
+        }
+    }
+
     /**
      * Receives a draw command from the Admin panel, persists it in the database,
      * and broadcasts the drawn ball to all players subscribed to the event's draw topic.
@@ -64,7 +88,10 @@ public class GameWebSocketController {
     @MessageMapping("/events/{eventId}/draw")
     public void drawBall(
             @DestinationVariable String eventId,
-            @Payload @Valid DrawBallCommand command) {
+            @Payload @Valid DrawBallCommand command,
+            java.security.Principal principal) {
+
+        validateAdminForEvent(principal, eventId);
 
         // Persist the drawn ball in the database for state recovery
         DrawBallMessage broadcast = gameService.recordDraw(
@@ -89,7 +116,11 @@ public class GameWebSocketController {
      * @param eventId the UUID of the active event
      */
     @MessageMapping("/events/{eventId}/undo")
-    public void undoLastDraw(@DestinationVariable String eventId) {
+    public void undoLastDraw(
+            @DestinationVariable String eventId,
+            java.security.Principal principal) {
+        
+        validateAdminForEvent(principal, eventId);
         try {
             // Delete last draw and fetch its metadata
             DrawBallMessage retracted = gameService.retractLastDraw(UUID.fromString(eventId));
@@ -119,7 +150,10 @@ public class GameWebSocketController {
     @MessageMapping("/events/{eventId}/announcement")
     public void broadcastAnnouncement(
             @DestinationVariable String eventId,
-            @Payload AnnouncementMessage.Payload announcement) {
+            @Payload AnnouncementMessage.Payload announcement,
+            java.security.Principal principal) {
+
+        validateAdminForEvent(principal, eventId);
 
         AnnouncementMessage broadcast = new AnnouncementMessage(announcement.getText());
 
@@ -143,7 +177,10 @@ public class GameWebSocketController {
     @MessageMapping("/tickets/{ticketId}/override")
     public void applyTicketOverride(
             @DestinationVariable String ticketId,
-            @Payload @Valid TicketOverrideCommand command) {
+            @Payload @Valid TicketOverrideCommand command,
+            java.security.Principal principal) {
+
+        validateAdminForTicket(principal, ticketId);
 
         try {
             // 1. Persist the forced override in the database
