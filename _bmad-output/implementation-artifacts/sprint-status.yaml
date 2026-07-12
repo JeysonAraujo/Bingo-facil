@@ -65,4 +65,7 @@ development_status:
   5-1-reactive-bingo-unlock-and-server-side-claims-engine: done
   5-2-side-by-side-admin-audit-dashboard-and-celebration-loop: done
   epic-5-retrospective: optional
-
+  epic-6: done
+  6-1-p0-security-audit-fixes-and-data-integrity: done
+  6-2-p1-stabilization-and-ux-improvements: done
+  epic-6-retrospective: optional

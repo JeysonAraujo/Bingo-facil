@@ -39,6 +39,7 @@ export interface EventResponseDto {
   rounds: RoundResponseDto[]
   status?: string
   headerImageUrl?: string
+  adminUsername?: string
 }
 
 export interface CreatePrizeRequest {
@@ -80,8 +81,18 @@ export interface TicketActivationResponseDto {
   matrix: TicketMatrixDto
 }
 
+export interface TicketValidationResponseDto {
+  serial: string
+  eventId: string
+  eventTitle: string
+  headerImageUrl: string | null
+  activated: boolean
+}
+
 export interface ActivateTicketRequest {
   serial: string
+  playerName: string
+  playerPhone: string
 }
 
 // Pre-configured Axios instance
@@ -95,7 +106,7 @@ const api = axios.create({
 // Request interceptor to attach admin token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('admin_session_token')
+    const token = sessionStorage.getItem('admin_session_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }

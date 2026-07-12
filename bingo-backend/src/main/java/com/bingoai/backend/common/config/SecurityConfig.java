@@ -37,7 +37,7 @@ public class SecurityConfig {
                 
                 // Public Auth and Player routes
                 .requestMatchers("/api/v1/auth/login", "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password").permitAll()
-                .requestMatchers("/api/v1/tickets/activate").permitAll()
+                .requestMatchers("/api/v1/tickets/activate", "/api/v1/tickets/validate").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/claims").permitAll() // Players claim bingo
                 
                 // Public views of events for players

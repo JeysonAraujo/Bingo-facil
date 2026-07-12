@@ -20,8 +20,9 @@ public class Round {
     @Column(name = "round_number", nullable = false)
     private Integer roundNumber;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status = "PENDING";
+    private RoundStatus status = RoundStatus.PENDING;
 
     @OneToMany(mappedBy = "round", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Prize> prizes = new ArrayList<>();
@@ -65,11 +66,11 @@ public class Round {
         this.roundNumber = roundNumber;
     }
 
-    public String getStatus() {
+    public RoundStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(RoundStatus status) {
         this.status = status;
     }
 

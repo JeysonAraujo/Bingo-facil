@@ -25,9 +25,19 @@ public class AdminOverrideService {
      * Resolves and maps a ticket entity by its unique serial string.
      */
     @Transactional(readOnly = true)
-    public TicketResponseDto findTicketBySerial(String serial) {
+    public TicketResponseDto findTicketBySerial(String serial, com.bingoai.backend.admin.Admin admin) {
         Ticket ticket = ticketRepository.findBySerial(serial.toUpperCase())
                 .orElseThrow(() -> new IllegalArgumentException("Cartela não encontrada com o serial: " + serial));
+
+        if (admin == null) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED, "Acesso não autorizado.");
+        }
+        if (!"ROLE_SUPER_ADMIN".equals(admin.getRole())) {
+            com.bingoai.backend.event.Event event = ticket.getEvent();
+            if (event.getAdmin() == null || !event.getAdmin().getId().equals(admin.getId())) {
+                throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Você não tem permissão para acessar esta cartela.");
+            }
+        }
 
         return new TicketResponseDto(
                 ticket.getId(),

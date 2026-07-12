@@ -55,6 +55,9 @@ public class ClaimControllerTests {
     @MockBean
     private SimpMessagingTemplate messagingTemplate;
 
+    @MockBean
+    private com.bingoai.backend.audit.AuditLogService auditLogService;
+
     private UsernamePasswordAuthenticationToken getMockPrincipal() {
         Admin mockAdmin = new Admin();
         mockAdmin.setUsername("admin");

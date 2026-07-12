@@ -78,6 +78,8 @@ class TicketActivationControllerTest {
         activatedTicket.setSerial("ZZZ999");
         activatedTicket.setMatrix(ticket.getMatrix());
         activatedTicket.setActivated(true);
+        activatedTicket.setPlayerName("João Silva");
+        activatedTicket.setPlayerPhone("11999999999");
         activatedTicket.setSessionToken(UUID.randomUUID().toString());
         ticketRepository.save(activatedTicket);
         activatedSerial = "ZZZ999";
@@ -86,7 +88,11 @@ class TicketActivationControllerTest {
     @Test
     @SuppressWarnings("null")
     void activateTicket_withValidSerial_returnsSuccess() throws Exception {
-        Map<String, String> body = Map.of("serial", validSerial);
+        Map<String, String> body = Map.of(
+                "serial", validSerial,
+                "playerName", "João Silva",
+                "playerPhone", "11999999999"
+        );
 
         mockMvc.perform(post("/api/v1/tickets/activate")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -101,8 +107,12 @@ class TicketActivationControllerTest {
 
     @Test
     @SuppressWarnings("null")
-    void activateTicket_withAlreadyActivatedSerial_returnsSuccessAndReusesToken() throws Exception {
-        Map<String, String> body = Map.of("serial", activatedSerial);
+    void activateTicket_withAlreadyActivatedSerial_returnsSuccessAndGeneratesNewToken() throws Exception {
+        Map<String, String> body = Map.of(
+                "serial", activatedSerial,
+                "playerName", "João Silva",
+                "playerPhone", "11999999999"
+        );
 
         // Fetch original session token of activated ticket to compare
         Ticket original = ticketRepository.findBySerial(activatedSerial).orElseThrow();
@@ -114,13 +124,35 @@ class TicketActivationControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.serial").value(activatedSerial))
-                .andExpect(jsonPath("$.data.sessionToken").value(originalToken));
+                .andExpect(jsonPath("$.data.sessionToken").isNotEmpty())
+                .andExpect(jsonPath("$.data.sessionToken").value(org.hamcrest.Matchers.not(originalToken)));
+    }
+
+    @Test
+    @SuppressWarnings("null")
+    void activateTicket_withAlreadyActivatedSerial_wrongDetails_returns401() throws Exception {
+        Map<String, String> body = Map.of(
+                "serial", activatedSerial,
+                "playerName", "Maria Souza",
+                "playerPhone", "11888888888"
+        );
+
+        mockMvc.perform(post("/api/v1/tickets/activate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.message").value("Esta cartela já está vinculada a outro jogador."));
     }
 
     @Test
     @SuppressWarnings("null")
     void activateTicket_withNonExistentSerial_returns404() throws Exception {
-        Map<String, String> body = Map.of("serial", "XXXXXX");
+        Map<String, String> body = Map.of(
+                "serial", "XXXXXX",
+                "playerName", "João Silva",
+                "playerPhone", "11999999999"
+        );
 
         mockMvc.perform(post("/api/v1/tickets/activate")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -133,7 +165,11 @@ class TicketActivationControllerTest {
     @Test
     @SuppressWarnings("null")
     void activateTicket_withBlankSerial_returns400() throws Exception {
-        Map<String, String> body = Map.of("serial", "");
+        Map<String, String> body = Map.of(
+                "serial", "",
+                "playerName", "João Silva",
+                "playerPhone", "11999999999"
+        );
 
         mockMvc.perform(post("/api/v1/tickets/activate")
                         .contentType(MediaType.APPLICATION_JSON)

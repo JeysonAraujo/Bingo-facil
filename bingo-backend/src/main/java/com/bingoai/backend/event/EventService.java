@@ -20,13 +20,16 @@ public class EventService {
     private final EventRepository eventRepository;
     private final com.bingoai.backend.ticket.TicketRepository ticketRepository;
     private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+    private final com.bingoai.backend.audit.AuditLogService auditLogService;
 
     public EventService(EventRepository eventRepository,
                         com.bingoai.backend.ticket.TicketRepository ticketRepository,
-                        org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate) {
+                        org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate,
+                        com.bingoai.backend.audit.AuditLogService auditLogService) {
         this.eventRepository = eventRepository;
         this.ticketRepository = ticketRepository;
         this.messagingTemplate = messagingTemplate;
+        this.auditLogService = auditLogService;
     }
 
     private void validateOwnership(Event event, com.bingoai.backend.admin.Admin admin) {
@@ -58,7 +61,7 @@ public class EventService {
                     for (CreatePrizeRequest prizeReq : roundReq.getPrizes()) {
                         Prize prize = new Prize();
                         prize.setName(prizeReq.getName());
-                        prize.setType(prizeReq.getType());
+                        prize.setType(PrizeType.valueOf(prizeReq.getType()));
                         prize.setDrawPattern(prizeReq.getDrawPattern());
                         round.addPrize(prize);
                     }
@@ -68,6 +71,7 @@ public class EventService {
         }
 
         Event savedEvent = eventRepository.save(event);
+        auditLogService.logAction(admin, "CREATE_EVENT", "Created event: " + savedEvent.getId());
         return mapToResponseDto(savedEvent);
     }
 
@@ -122,6 +126,10 @@ public class EventService {
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + id));
         validateOwnership(event, admin);
         
+        if (EventStatus.FINALIZADO.equals(event.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Um evento finalizado não pode ser modificado.");
+        }
+        
         event.setTitle(request.getTitle());
         event.setScheduledAt(request.getScheduledAt());
         event.setYoutubeUrl(request.getYoutubeUrl());
@@ -135,13 +143,17 @@ public class EventService {
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
         validateOwnership(event, admin);
         
+        if (EventStatus.FINALIZADO.equals(event.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível adicionar rodadas a um evento finalizado.");
+        }
+        
         Round round = new Round();
         round.setRoundNumber(request.getRoundNumber());
         if (request.getPrizes() != null) {
             for (CreatePrizeRequest prizeReq : request.getPrizes()) {
                 Prize prize = new Prize();
                 prize.setName(prizeReq.getName());
-                prize.setType(prizeReq.getType());
+                prize.setType(PrizeType.valueOf(prizeReq.getType()));
                 prize.setDrawPattern(prizeReq.getDrawPattern());
                 round.addPrize(prize);
             }
@@ -157,6 +169,10 @@ public class EventService {
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
         validateOwnership(event, admin);
         
+        if (EventStatus.FINALIZADO.equals(event.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível modificar rodadas de um evento finalizado.");
+        }
+        
         Round targetRound = event.getRounds().stream()
                 .filter(r -> r.getId().equals(roundId))
                 .findFirst()
@@ -169,7 +185,7 @@ public class EventService {
             for (CreatePrizeRequest prizeReq : request.getPrizes()) {
                 Prize prize = new Prize();
                 prize.setName(prizeReq.getName());
-                prize.setType(prizeReq.getType());
+                prize.setType(PrizeType.valueOf(prizeReq.getType()));
                 prize.setDrawPattern(prizeReq.getDrawPattern());
                 targetRound.addPrize(prize);
             }
@@ -185,10 +201,15 @@ public class EventService {
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + id));
         validateOwnership(event, admin);
         
-        event.setStatus(status.toUpperCase());
-        Event saved = eventRepository.save(event);
+        if (EventStatus.FINALIZADO.equals(event.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O status de um evento finalizado não pode ser alterado.");
+        }
         
-        if ("FINALIZADO".equals(saved.getStatus())) {
+        event.setStatus(EventStatus.valueOf(status));
+        Event saved = eventRepository.save(event);
+        auditLogService.logAction(admin, "UPDATE_EVENT_STATUS", "Updated event " + id + " status to " + status);
+        
+        if (EventStatus.FINALIZADO.equals(saved.getStatus())) {
             // Send STOMP message before invalidating tokens
             messagingTemplate.convertAndSend(
                     "/topic/events/" + id + "/status",
@@ -208,6 +229,22 @@ public class EventService {
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + id));
         validateOwnership(event, admin);
         
+        if (EventStatus.FINALIZADO.equals(event.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Um evento finalizado não pode ser excluído.");
+        }
+        
+        // Excluir arquivo do cabeçalho físico se houver
+        if (event.getHeaderImageUrl() != null) {
+            try {
+                java.io.File headerFile = new java.io.File(event.getHeaderImageUrl());
+                if (headerFile.exists()) {
+                    headerFile.delete();
+                }
+            } catch (Exception e) {
+                System.err.println("[EventService] Failed to delete header image file on event delete: " + e.getMessage());
+            }
+        }
+        
         eventRepository.delete(event);
     }
 
@@ -217,11 +254,30 @@ public class EventService {
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
         validateOwnership(event, admin);
         
+        if (EventStatus.FINALIZADO.equals(event.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Um evento finalizado não pode ser modificado.");
+        }
+        
         if (file.isEmpty()) {
             throw new IllegalArgumentException("Uploaded file is empty");
         }
         if (file.getSize() > 2 * 1024 * 1024) {
             throw new IllegalArgumentException("File size exceeds 2MB limit");
+        }
+        
+        String contentType = file.getContentType();
+        if (contentType == null || (!contentType.equals("image/jpeg") && !contentType.equals("image/png") && !contentType.equals("image/webp"))) {
+            throw new IllegalArgumentException("Mapeamento de arquivo inválido. Apenas imagens JPEG, PNG ou WebP são aceitas.");
+        }
+
+        try {
+            org.apache.tika.Tika tika = new org.apache.tika.Tika();
+            String detectedType = tika.detect(file.getInputStream());
+            if (!detectedType.startsWith("image/")) {
+                throw new IllegalArgumentException("O conteúdo do arquivo não é uma imagem válida.");
+            }
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Falha ao validar conteúdo do arquivo.", e);
         }
 
         try {
@@ -230,19 +286,58 @@ public class EventService {
                 uploadDir.mkdirs();
             }
             
+            // Excluir cabeçalho antigo físico se existir
+            if (event.getHeaderImageUrl() != null) {
+                try {
+                    java.io.File oldFile = new java.io.File(event.getHeaderImageUrl());
+                    if (oldFile.exists()) {
+                        oldFile.delete();
+                    }
+                } catch (Exception e) {
+                    System.err.println("[EventService] Failed to delete old header image: " + e.getMessage());
+                }
+            }
+            
             String originalName = file.getOriginalFilename();
             if (originalName == null) {
                 originalName = "header";
             }
-            String filename = eventId.toString() + "_" + originalName.replaceAll("[^a-zA-Z0-9.-]", "_");
-            java.io.File destFile = new java.io.File(uploadDir.getAbsolutePath(), filename);
+            String filename = eventId.toString() + "_" + System.currentTimeMillis() + "_" + originalName.replaceAll("[^a-zA-Z0-9.-]", "_");
+            java.io.File destFile = new java.io.File(uploadDir, filename);
             file.transferTo(destFile);
             
-            event.setHeaderImageUrl(destFile.getAbsolutePath());
+            String relativePath = "uploads/headers/" + filename;
+            event.setHeaderImageUrl(relativePath);
             Event saved = eventRepository.save(event);
             return mapToResponseDto(saved);
         } catch (Exception e) {
             throw new RuntimeException("Failed to save header image", e);
         }
+    }
+
+    @Transactional
+    public EventResponseDto deleteHeaderImage(@NonNull UUID eventId, com.bingoai.backend.admin.Admin admin) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
+        validateOwnership(event, admin);
+        
+        if (EventStatus.FINALIZADO.equals(event.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Um evento finalizado não pode ser modificado.");
+        }
+        
+        if (event.getHeaderImageUrl() != null) {
+            try {
+                java.io.File file = new java.io.File(event.getHeaderImageUrl());
+                if (file.exists()) {
+                    file.delete();
+                }
+            } catch (Exception e) {
+                System.err.println("[EventService] Failed to delete header image file: " + e.getMessage());
+            }
+            event.setHeaderImageUrl(null);
+            Event saved = eventRepository.save(event);
+            return mapToResponseDto(saved);
+        }
+        return mapToResponseDto(event);
     }
 }

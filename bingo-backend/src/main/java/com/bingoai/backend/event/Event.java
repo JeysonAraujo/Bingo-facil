@@ -29,8 +29,9 @@ public class Event {
     @Column(name = "youtube_url")
     private String youtubeUrl;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status = "AGUARDANDO";
+    private EventStatus status = EventStatus.AGUARDANDO;
 
     @Column(name = "header_image_url")
     private String headerImageUrl;
@@ -113,11 +114,11 @@ public class Event {
         this.rounds = rounds;
     }
 
-    public String getStatus() {
+    public EventStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(EventStatus status) {
         this.status = status;
     }
 

@@ -181,17 +181,42 @@
               Gerenciar Evento
             </v-btn>
 
-            <v-select
-              :model-value="event.status"
-              :items="['AGUARDANDO', 'ATIVO', 'FINALIZADO']"
-              density="compact"
-              hide-details
-              label="Modificar Status"
-              variant="outlined"
-              class="rounded-lg mb-3"
-              bg-color="white"
-              @update:model-value="(val) => handleStatusChange(event.id, val)"
-            ></v-select>
+            <!-- Dynamic Action Buttons instead of v-select -->
+            <div class="mb-3 d-flex gap-2 w-100">
+              <v-btn
+                v-if="!event.status || event.status === 'AGUARDANDO'"
+                color="green-darken-2"
+                variant="flat"
+                block
+                prepend-icon="mdi-play"
+                class="font-weight-bold rounded-lg text-white"
+                @click="confirmStatusChange(event.id, 'ATIVO')"
+              >
+                Iniciar Evento
+              </v-btn>
+              <v-btn
+                v-else-if="event.status === 'ATIVO'"
+                color="orange-darken-3"
+                variant="flat"
+                block
+                prepend-icon="mdi-stop"
+                class="font-weight-bold rounded-lg text-white"
+                @click="confirmStatusChange(event.id, 'FINALIZADO')"
+              >
+                Finalizar Evento
+              </v-btn>
+              <v-btn
+                v-else-if="event.status === 'FINALIZADO'"
+                color="grey-darken-1"
+                variant="flat"
+                block
+                disabled
+                prepend-icon="mdi-check-all"
+                class="font-weight-bold rounded-lg text-white"
+              >
+                Evento Encerrado
+              </v-btn>
+            </div>
 
             <div class="d-flex justify-space-between w-100">
               <v-btn
@@ -256,6 +281,28 @@
           <v-spacer></v-spacer>
           <v-btn color="grey-darken-1" variant="text" @click="editDialog = false">Cancelar</v-btn>
           <v-btn color="primary" variant="flat" class="rounded-lg px-4" :disabled="!formValid" @click="saveEditedEvent">Salvar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+    <!-- Status Confirmation Dialog -->
+    <v-dialog v-model="statusDialog.show" max-width="400px" persistent>
+      <v-card class="rounded-xl pa-4">
+        <v-card-title class="font-weight-bold text-h6 pb-2" :class="statusDialog.targetStatus === 'ATIVO' ? 'text-green-darken-2' : 'text-orange-darken-3'">
+          <v-icon :icon="statusDialog.targetStatus === 'ATIVO' ? 'mdi-play' : 'mdi-alert'" class="mr-2"></v-icon>
+          Confirmar Ação
+        </v-card-title>
+        <v-card-text class="pt-2">
+          Tem certeza que deseja {{ statusDialog.targetStatus === 'ATIVO' ? 'iniciar' : 'finalizar' }} este evento?
+          <template v-if="statusDialog.targetStatus === 'FINALIZADO'">
+            <br><br><strong class="text-red">Atenção:</strong> Esta ação é permanente e impedirá novas jogadas.
+          </template>
+        </v-card-text>
+        <v-card-actions class="pt-0">
+          <v-spacer></v-spacer>
+          <v-btn color="grey-darken-1" variant="text" @click="statusDialog.show = false">Cancelar</v-btn>
+          <v-btn :color="statusDialog.targetStatus === 'ATIVO' ? 'green-darken-2' : 'orange-darken-3'" variant="flat" class="rounded-lg px-4 text-white" @click="executeStatusChange">
+            Confirmar
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -337,8 +384,21 @@ const confirmDelete = async (eventId: string) => {
   }
 }
 
-const handleStatusChange = async (eventId: string, status: string) => {
-  await adminStore.updateEventStatus(eventId, status)
+const statusDialog = ref({
+  show: false,
+  eventId: '',
+  targetStatus: ''
+})
+
+const confirmStatusChange = (eventId: string, targetStatus: string) => {
+  statusDialog.value.eventId = eventId
+  statusDialog.value.targetStatus = targetStatus
+  statusDialog.value.show = true
+}
+
+const executeStatusChange = async () => {
+  statusDialog.value.show = false
+  await adminStore.updateEventStatus(statusDialog.value.eventId, statusDialog.value.targetStatus)
 }
 
 const getStatusColor = (status: string) => {

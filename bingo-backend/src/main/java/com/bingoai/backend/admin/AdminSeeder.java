@@ -17,6 +17,9 @@ public class AdminSeeder implements ApplicationRunner {
     private final EventRepository eventRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @org.springframework.beans.factory.annotation.Value("${spring.profiles.active:dev}")
+    private String activeProfile;
+
     public AdminSeeder(AdminRepository adminRepository,
                        EventRepository eventRepository,
                        PasswordEncoder passwordEncoder) {
@@ -29,14 +32,31 @@ public class AdminSeeder implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) throws Exception {
         // 1. Seed SuperAdmin if not exists
-        Admin superAdmin = adminRepository.findByUsername("admin").orElseGet(() -> {
-            Admin newAdmin = new Admin();
-            newAdmin.setUsername("admin");
-            newAdmin.setPassword(passwordEncoder.encode("admin"));
-            newAdmin.setEmail("admin@bingoai.com");
-            newAdmin.setRole("ROLE_SUPER_ADMIN");
-            return adminRepository.save(newAdmin);
-        });
+        if (adminRepository.findByUsername("admin").isEmpty()) {
+            String initialPassword = System.getenv("BINGO_ADMIN_INITIAL_PASSWORD");
+            if (initialPassword != null && !initialPassword.trim().isEmpty()) {
+                Admin newAdmin = new Admin();
+                newAdmin.setUsername("admin");
+                newAdmin.setPassword(passwordEncoder.encode(initialPassword.trim()));
+                newAdmin.setEmail("admin@bingoai.com");
+                newAdmin.setRole("ROLE_SUPER_ADMIN");
+                adminRepository.save(newAdmin);
+                System.out.println("[AdminSeeder] Created default SuperAdmin with password from environment variable.");
+            } else if (activeProfile == null || !activeProfile.toLowerCase().contains("prod")) {
+                Admin newAdmin = new Admin();
+                newAdmin.setUsername("admin");
+                newAdmin.setPassword(passwordEncoder.encode("admin"));
+                newAdmin.setEmail("admin@bingoai.com");
+                newAdmin.setRole("ROLE_SUPER_ADMIN");
+                adminRepository.save(newAdmin);
+                System.out.println("[AdminSeeder] Created default local SuperAdmin (admin/admin).");
+            } else {
+                System.out.println("[AdminSeeder] Production profile active, skipping default admin creation (BINGO_ADMIN_INITIAL_PASSWORD is not set).");
+            }
+        }
+
+        Admin superAdmin = adminRepository.findByUsername("admin").orElse(null);
+        if (superAdmin != null) {
 
         // 2. Associate existing events that do not have an owner with the SuperAdmin
         List<Event> orphanedEvents = eventRepository.findAll();
@@ -54,6 +74,7 @@ public class AdminSeeder implements ApplicationRunner {
         }
         if (updatedAny) {
             System.out.println("[AdminSeeder] Associated existing orphan events with default SuperAdmin.");
+        }
         }
     }
 

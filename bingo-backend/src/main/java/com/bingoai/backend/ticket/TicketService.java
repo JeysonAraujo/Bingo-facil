@@ -37,8 +37,38 @@ public class TicketService {
      * @return the number of tickets actually persisted.
      */
     @Transactional
-    public int generateBatch(UUID eventId, int quantity) {
-        Event event = entityManager.getReference(Event.class, eventId);
+    public int generateBatch(UUID eventId, int quantity, com.bingoai.backend.admin.Admin admin) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Evento não encontrado com o ID: " + eventId));
+
+        if (admin == null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.UNAUTHORIZED, "Acesso não autorizado.");
+        }
+        if (!"ROLE_SUPER_ADMIN".equals(admin.getRole())) {
+            if (event.getAdmin() == null || !event.getAdmin().getId().equals(admin.getId())) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.FORBIDDEN, "Você não tem permissão para acessar este evento.");
+            }
+        }
+
+        if (event.getStatus() != com.bingoai.backend.event.EventStatus.AGUARDANDO) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "As cartelas só podem ser geradas se o evento estiver com status AGUARDANDO.");
+        }
+
+        boolean ticketsAlreadyExist = ticketRepository.existsByEventId(eventId);
+        if (ticketsAlreadyExist) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "As cartelas para este evento já foram geradas.");
+        }
+
+        if (quantity <= 0 || quantity > 5000) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "A quantidade de cartelas a ser gerada deve estar entre 1 e 5000.");
+        }
+
         List<Ticket> tickets = new ArrayList<>(quantity);
         Set<String> usedSerials = new java.util.HashSet<>(quantity * 2);
 

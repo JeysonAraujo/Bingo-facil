@@ -7,9 +7,9 @@ const ROLE_KEY = 'admin_role'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    token: localStorage.getItem(TOKEN_KEY) as string | null,
-    username: localStorage.getItem(USERNAME_KEY) as string | null,
-    role: localStorage.getItem(ROLE_KEY) as string | null,
+    token: sessionStorage.getItem(TOKEN_KEY) as string | null,
+    username: sessionStorage.getItem(USERNAME_KEY) as string | null,
+    role: sessionStorage.getItem(ROLE_KEY) as string | null,
     isLoading: false,
     error: null as string | null
   }),
@@ -31,9 +31,9 @@ export const useAuthStore = defineStore('auth', {
           this.username = user
           this.role = role
 
-          localStorage.setItem(TOKEN_KEY, token)
-          localStorage.setItem(USERNAME_KEY, user)
-          localStorage.setItem(ROLE_KEY, role)
+          sessionStorage.setItem(TOKEN_KEY, token)
+          sessionStorage.setItem(USERNAME_KEY, user)
+          sessionStorage.setItem(ROLE_KEY, role)
           return true
         } else {
           this.error = response.data.error?.message || 'Erro ao realizar login.'
@@ -104,9 +104,9 @@ export const useAuthStore = defineStore('auth', {
         this.token = null
         this.username = null
         this.role = null
-        localStorage.removeItem(TOKEN_KEY)
-        localStorage.removeItem(USERNAME_KEY)
-        localStorage.removeItem(ROLE_KEY)
+        sessionStorage.removeItem(TOKEN_KEY)
+        sessionStorage.removeItem(USERNAME_KEY)
+        sessionStorage.removeItem(ROLE_KEY)
       }
     }
   }

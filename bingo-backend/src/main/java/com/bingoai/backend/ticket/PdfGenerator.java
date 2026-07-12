@@ -59,7 +59,7 @@ public class PdfGenerator {
                 // Header (Image) - Drawn absolutely at the top (210x55mm)
                 if (headerImageUrl != null && !headerImageUrl.trim().isEmpty()) {
                     try {
-                        Image img = Image.getInstance(headerImageUrl);
+                        Image img = Image.getInstance(new java.io.File(headerImageUrl).getAbsolutePath());
                         float imgWidth = PageSize.A4.getWidth();
                         float imgHeight = 55f / 25.4f * 72f;
                         img.setAbsolutePosition(0, PageSize.A4.getHeight() - imgHeight);

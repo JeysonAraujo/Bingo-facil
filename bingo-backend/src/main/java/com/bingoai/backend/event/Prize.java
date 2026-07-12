@@ -18,8 +18,9 @@ public class Prize {
     @Column(nullable = false)
     private String name;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String type;
+    private PrizeType type;
 
     @Column(name = "draw_pattern", nullable = false)
     private String drawPattern;
@@ -52,11 +53,11 @@ public class Prize {
         this.name = name;
     }
 
-    public String getType() {
+    public PrizeType getType() {
         return type;
     }
 
-    public void setType(String type) {
+    public void setType(PrizeType type) {
         this.type = type;
     }
 

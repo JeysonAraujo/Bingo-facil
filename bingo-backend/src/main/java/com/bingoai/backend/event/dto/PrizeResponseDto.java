@@ -5,13 +5,13 @@ import java.util.UUID;
 public class PrizeResponseDto {
     private UUID id;
     private String name;
-    private String type;
+    private com.bingoai.backend.event.PrizeType type;
     private String drawPattern;
 
     public PrizeResponseDto() {
     }
 
-    public PrizeResponseDto(UUID id, String name, String type, String drawPattern) {
+    public PrizeResponseDto(UUID id, String name, com.bingoai.backend.event.PrizeType type, String drawPattern) {
         this.id = id;
         this.name = name;
         this.type = type;
@@ -34,11 +34,11 @@ public class PrizeResponseDto {
         this.name = name;
     }
 
-    public String getType() {
+    public com.bingoai.backend.event.PrizeType getType() {
         return type;
     }
 
-    public void setType(String type) {
+    public void setType(com.bingoai.backend.event.PrizeType type) {
         this.type = type;
     }
 

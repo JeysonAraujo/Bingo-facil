@@ -1,5 +1,7 @@
 package com.bingoai.backend.event.dto;
 
+import com.bingoai.backend.event.EventStatus;
+
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -12,7 +14,7 @@ public class EventResponseDto {
     private Integer streamDelaySeconds;
     private String youtubeUrl;
     private List<RoundResponseDto> rounds;
-    private String status;
+    private EventStatus status;
     private String headerImageUrl;
     private String adminUsername;
 
@@ -20,14 +22,14 @@ public class EventResponseDto {
     }
 
     public EventResponseDto(UUID id, String title, OffsetDateTime scheduledAt, OffsetDateTime createdAt, List<RoundResponseDto> rounds) {
-        this(id, title, scheduledAt, createdAt, 0, null, "AGUARDANDO", null, rounds, null);
+        this(id, title, scheduledAt, createdAt, 0, null, com.bingoai.backend.event.EventStatus.AGUARDANDO, null, rounds, null);
     }
 
     public EventResponseDto(UUID id, String title, OffsetDateTime scheduledAt, OffsetDateTime createdAt, Integer streamDelaySeconds, List<RoundResponseDto> rounds) {
-        this(id, title, scheduledAt, createdAt, streamDelaySeconds, null, "AGUARDANDO", null, rounds, null);
+        this(id, title, scheduledAt, createdAt, streamDelaySeconds, null, com.bingoai.backend.event.EventStatus.AGUARDANDO, null, rounds, null);
     }
 
-    public EventResponseDto(UUID id, String title, OffsetDateTime scheduledAt, OffsetDateTime createdAt, Integer streamDelaySeconds, String youtubeUrl, String status, String headerImageUrl, List<RoundResponseDto> rounds, String adminUsername) {
+    public EventResponseDto(UUID id, String title, OffsetDateTime scheduledAt, OffsetDateTime createdAt, Integer streamDelaySeconds, String youtubeUrl, EventStatus status, String headerImageUrl, List<RoundResponseDto> rounds, String adminUsername) {
         this.id = id;
         this.title = title;
         this.scheduledAt = scheduledAt;
@@ -96,11 +98,11 @@ public class EventResponseDto {
         this.rounds = rounds;
     }
 
-    public String getStatus() {
+    public EventStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(EventStatus status) {
         this.status = status;
     }
 

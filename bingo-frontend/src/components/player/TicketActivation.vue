@@ -27,18 +27,32 @@
                   :error="!!error"
                   :error-messages="error || ''"
                   autofocus
-                  class="serial-field"
+                  class="serial-field mb-3"
                   color="primary"
                   counter="6"
                   density="comfortable"
                   maxlength="6"
-                  placeholder="Ex: ABC123"
+                  placeholder="SERIAL"
                   rounded
                   variant="outlined"
                   aria-label="Código serial da cartela"
                   aria-required="true"
                   @input="onInput"
                 />
+
+
+
+                <!-- Botão de ativação -->
+                <v-btn
+                  color="indigo-darken-4"
+                  size="large"
+                  block
+                  class="font-weight-bold rounded-lg text-white mb-3 text-capitalize"
+                  :disabled="isLoading || !serialInput || serialInput.length !== 6"
+                  @click="submitForm"
+                >
+                  Continuar
+                </v-btn>
 
                 <!-- Loading state -->
                 <div v-if="isLoading" class="loading-state">
@@ -47,12 +61,12 @@
                     indeterminate
                     size="36"
                   />
-                  <span class="loading-text">Verificando sua cartela...</span>
+                  <span class="loading-text">Verificando seus dados...</span>
                 </div>
 
                 <!-- Dica para quem escaneou o QR -->
                 <p class="hint-text" v-if="!isLoading && !error">
-                  💡 Você também pode escanear o QR Code impresso no cartelão para ativar automaticamente.
+                  💡 Você também pode escanear o QR Code impresso no cartelão e depois completar seu nome e telefone para entrar.
                 </p>
 
               </v-card-text>
@@ -69,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useGameStore } from '../../stores/game'
 
@@ -78,38 +92,45 @@ const router = useRouter()
 const gameStore = useGameStore()
 
 const serialInput = ref('')
+
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 
-// Auto-trigger from QR code URL param (?serial=XXXXXX)
+// Auto-fill from QR code URL param (?serial=XXXXXX)
 onMounted(() => {
   const serialParam = route.query.serial as string | undefined
   if (serialParam && serialParam.length === 6) {
     serialInput.value = serialParam.toUpperCase()
-    triggerActivation(serialInput.value)
   }
 })
 
-// Auto-submit when 6 characters are typed
+// Normalize serial input
 function onInput() {
   error.value = null
   const val = serialInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
   serialInput.value = val
-  if (val.length === 6) {
-    triggerActivation(val)
-  }
 }
 
-async function triggerActivation(serial: string) {
+async function submitForm() {
+  if (!serialInput.value || serialInput.value.length !== 6) {
+    error.value = 'O serial deve ter exatamente 6 caracteres.'
+    return
+  }
+
   isLoading.value = true
   error.value = null
-  const success = await gameStore.activateTicket(serial)
+  const validationResult = await gameStore.validateTicket(serialInput.value)
   isLoading.value = false
 
-  if (success) {
-    router.push('/game')
+  if (validationResult) {
+    if (validationResult.activated) {
+      // If already activated and they don't have session token, 
+      // they need to activate again to get the token (with name/phone).
+      // We still redirect to /game and let the modal handle it.
+    }
+    router.push(`/game?serial=${serialInput.value}`)
   } else {
-    error.value = gameStore.error || 'Erro ao ativar a cartela. Tente novamente.'
+    error.value = gameStore.error || 'Cartela não encontrada ou inválida.'
   }
 }
 </script>

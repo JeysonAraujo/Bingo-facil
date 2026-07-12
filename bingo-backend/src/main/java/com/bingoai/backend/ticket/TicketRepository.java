@@ -13,6 +13,7 @@ import java.util.UUID;
 public interface TicketRepository extends JpaRepository<Ticket, UUID> {
     List<Ticket> findByEventId(UUID eventId);
     List<Ticket> findByEventIdAndActivatedTrue(UUID eventId);
+    boolean existsByEventId(UUID eventId);
 
     Optional<Ticket> findBySerial(String serial);
 

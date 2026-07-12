@@ -17,17 +17,37 @@ public class TicketActivationService {
     }
 
     @Transactional
-    public TicketActivationResponseDto activateTicket(String serial) {
+    public TicketActivationResponseDto activateTicket(String serial, String playerName, String playerPhone) {
         Ticket ticket = ticketRepository.findWithLockBySerial(serial.toUpperCase())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Cartela não encontrada."));
 
-        String sessionToken = ticket.getSessionToken();
-        if (sessionToken == null || sessionToken.isEmpty()) {
+        String sessionToken;
+        if (!ticket.isActivated()) {
+            // Primeiro acesso / Ativação
+            sessionToken = UUID.randomUUID().toString();
+            ticket.setSessionToken(sessionToken);
+            ticket.setPlayerName(playerName);
+            ticket.setPlayerPhone(playerPhone);
+            ticket.setActivated(true);
+        } else {
+            // Acesso subsequente / Login por desconexão
+            String dbName = ticket.getPlayerName() != null ? ticket.getPlayerName().trim().toLowerCase() : "";
+            String dbPhone = ticket.getPlayerPhone() != null ? ticket.getPlayerPhone().trim().replaceAll("[^0-9]", "") : "";
+
+            String reqName = playerName != null ? playerName.trim().toLowerCase() : "";
+            String reqPhone = playerPhone != null ? playerPhone.trim().replaceAll("[^0-9]", "") : "";
+
+            if (!dbName.equals(reqName) || !dbPhone.equals(reqPhone)) {
+                throw new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED, "Esta cartela já está vinculada a outro jogador.");
+            }
+
+            // Sempre gera um novo token de alta entropia na reativação
             sessionToken = UUID.randomUUID().toString();
             ticket.setSessionToken(sessionToken);
         }
-        ticket.setActivated(true);
+
         ticketRepository.save(ticket);
 
         return new TicketActivationResponseDto(
@@ -36,6 +56,20 @@ public class TicketActivationService {
                 sessionToken,
                 ticket.getSerial(),
                 ticket.getMatrix()
+        );
+    }
+
+    public TicketValidationResponseDto validateTicket(String serial) {
+        Ticket ticket = ticketRepository.findBySerial(serial.toUpperCase())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Cartela não encontrada."));
+
+        return new TicketValidationResponseDto(
+                ticket.getSerial(),
+                ticket.getEvent().getId(),
+                ticket.getEvent().getTitle(),
+                ticket.getEvent().getHeaderImageUrl(),
+                ticket.isActivated()
         );
     }
 }

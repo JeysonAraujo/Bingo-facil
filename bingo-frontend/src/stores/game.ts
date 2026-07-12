@@ -3,7 +3,8 @@ import type { Client } from '@stomp/stompjs'
 import api, {
   type ApiResponse,
   type TicketActivationResponseDto,
-  type TicketMatrixDto
+  type TicketMatrixDto,
+  type TicketValidationResponseDto
 } from '../services/api'
 import {
   createWebSocketClient,
@@ -22,18 +23,18 @@ const TICKET_ID_KEY = 'bingo_ticket_id'
 export const useGameStore = defineStore('game', {
   state: () => ({
     // ── Ticket session state (existing, do not modify) ──────────────────────
-    sessionToken: localStorage.getItem(SESSION_TOKEN_KEY) as string | null,
+    sessionToken: sessionStorage.getItem(SESSION_TOKEN_KEY) as string | null,
     ticketMatrix: (() => {
       try {
-        const raw = localStorage.getItem(TICKET_MATRIX_KEY)
+        const raw = sessionStorage.getItem(TICKET_MATRIX_KEY)
         return raw ? (JSON.parse(raw) as TicketMatrixDto) : null
       } catch {
         return null
       }
     })() as TicketMatrixDto | null,
-    serial: localStorage.getItem(TICKET_SERIAL_KEY) as string | null,
-    eventId: localStorage.getItem(EVENT_ID_KEY) as string | null,
-    ticketId: localStorage.getItem(TICKET_ID_KEY) as string | null,
+    serial: sessionStorage.getItem(TICKET_SERIAL_KEY) as string | null,
+    eventId: sessionStorage.getItem(EVENT_ID_KEY) as string | null,
+    ticketId: sessionStorage.getItem(TICKET_ID_KEY) as string | null,
     isLoading: false,
     error: null as string | null,
     eventDetails: null as any | null,
@@ -62,7 +63,10 @@ export const useGameStore = defineStore('game', {
     winnerCardIndex: null as number | null,
     showVictoryOverlay: false,
     activeViewers: 0,
-    isBingoFinished: false
+    isBingoFinished: false,
+    winnersList: [] as Array<{ serial: string; name: string }>,
+    playerName: sessionStorage.getItem('bingo_player_name') as string | null,
+    playerPhone: sessionStorage.getItem('bingo_player_phone') as string | null
   }),
 
   getters: {
@@ -72,15 +76,40 @@ export const useGameStore = defineStore('game', {
   },
 
   actions: {
-    // ── Existing ticket activation actions (unchanged) ────────────────────
+    async validateTicket(serialCode: string): Promise<TicketValidationResponseDto | null> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.get<ApiResponse<TicketValidationResponseDto>>(`/tickets/validate?serial=${serialCode}`)
+        if (response.data.success) {
+          const data = response.data.data
+          // Do NOT save session stuff here, just metadata for the view
+          this.serial = data.serial
+          this.eventId = data.eventId
+          return data
+        } else {
+          this.error = response.data.error?.message || 'Cartela inválida.'
+          return null
+        }
+      } catch (err: any) {
+        this.error = err.response?.data?.error?.message || 'Falha ao validar cartela.'
+        return null
+      } finally {
+        this.isLoading = false
+      }
+    },
 
-    async activateTicket(serial: string): Promise<boolean> {
+    async activateTicket(serialCode: string, playerName: string, playerPhone: string): Promise<boolean> {
       this.isLoading = true
       this.error = null
       try {
         const response = await api.post<ApiResponse<TicketActivationResponseDto>>(
           '/tickets/activate',
-          { serial: serial.toUpperCase() }
+          {
+            serial: serialCode.toUpperCase(),
+            playerName,
+            playerPhone
+          }
         )
         if (response.data.success) {
           const data = response.data.data
@@ -89,13 +118,17 @@ export const useGameStore = defineStore('game', {
           this.serial = data.serial
           this.eventId = data.eventId
           this.ticketId = data.ticketId
+          this.playerName = playerName
+          this.playerPhone = playerPhone
 
-          // Persist to localStorage for session recovery on page refresh
-          localStorage.setItem(SESSION_TOKEN_KEY, data.sessionToken)
-          localStorage.setItem(TICKET_MATRIX_KEY, JSON.stringify(data.matrix))
-          localStorage.setItem(TICKET_SERIAL_KEY, data.serial)
-          localStorage.setItem(EVENT_ID_KEY, data.eventId)
-          localStorage.setItem(TICKET_ID_KEY, data.ticketId)
+          // Persist to sessionStorage for session recovery on page refresh
+          sessionStorage.setItem(SESSION_TOKEN_KEY, data.sessionToken)
+          sessionStorage.setItem(TICKET_MATRIX_KEY, JSON.stringify(data.matrix))
+          sessionStorage.setItem(TICKET_SERIAL_KEY, data.serial)
+          sessionStorage.setItem(EVENT_ID_KEY, data.eventId)
+          sessionStorage.setItem(TICKET_ID_KEY, data.ticketId)
+          sessionStorage.setItem('bingo_player_name', playerName)
+          sessionStorage.setItem('bingo_player_phone', playerPhone)
           return true
         } else {
           this.error = response.data.error?.message || 'Falha ao ativar cartela.'
@@ -118,13 +151,16 @@ export const useGameStore = defineStore('game', {
       this.serial = null
       this.eventId = null
       this.ticketId = null
-      this.overriddenNumbers = []
-      this.activeAnnouncement = null
-      localStorage.removeItem(SESSION_TOKEN_KEY)
-      localStorage.removeItem(TICKET_MATRIX_KEY)
-      localStorage.removeItem(TICKET_SERIAL_KEY)
-      localStorage.removeItem(EVENT_ID_KEY)
-      localStorage.removeItem(TICKET_ID_KEY)
+      this.playerName = null
+      this.playerPhone = null
+      sessionStorage.removeItem(SESSION_TOKEN_KEY)
+      sessionStorage.removeItem(TICKET_MATRIX_KEY)
+      sessionStorage.removeItem(TICKET_SERIAL_KEY)
+      sessionStorage.removeItem(EVENT_ID_KEY)
+      sessionStorage.removeItem(TICKET_ID_KEY)
+      sessionStorage.removeItem('bingo_player_name')
+      sessionStorage.removeItem('bingo_player_phone')
+      this.disconnectFromGame()
     },
 
     // ── WebSocket actions (Story 3.1) ────────────────────────────────────
@@ -135,9 +171,76 @@ export const useGameStore = defineStore('game', {
      *
      * @param eventId UUID of the active bingo event
      */
-    /**
-     * Fetches details of the active event, specifically to get the stream delay.
-     */
+    connectToGame(eventId: string, onChatMessage?: (msg: any) => void, onRoundStatusChange?: (msg: any) => void) {
+      if (!this.sessionToken || !this.ticketId) return
+      
+      this.disconnectFromGame()
+      
+      this.winnerSerial = null
+      this.winnerCardIndex = null
+      this.showVictoryOverlay = false
+      this.winnersList = []
+ 
+      this._wsClient = createWebSocketClient(
+        eventId,
+        this.sessionToken,
+        (ball: WsBallDrawnPayload) => this.addDrawnNumber(ball.ballNumber, ball.timestamp),
+        (ball: WsBallDrawnPayload) => this.retractDrawnNumber(ball.ballNumber),
+        (status: WsConnectionStatus) => this.setConnectionStatus(status),
+        this.ticketId,
+        (announcement: WsAnnouncementPayload) => {
+          this.activeAnnouncement = announcement.text
+        },
+        (override: WsTicketOverridePayload) => {
+          this.applyTicketOverride(override.ballNumber, override.action)
+        },
+        (delay: number) => {
+          this.setLatencySeconds(delay)
+        },
+        (claimMsg) => {
+          if (claimMsg.eventType === 'BINGO_APPROVED') {
+            const serial = claimMsg.payload.serial
+            const name = claimMsg.payload.playerName || 'Jogador'
+            if (!this.winnersList) {
+              this.winnersList = []
+            }
+            if (!this.winnersList.some((w: any) => w.serial === serial)) {
+              this.winnersList.push({ serial, name })
+            }
+            this.winnerSerial = this.winnersList.map((w: any) => `${w.name} (${w.serial})`).join(', ')
+            this.winnerCardIndex = claimMsg.payload.cardIndex
+            this.showVictoryOverlay = true
+          }
+        },
+        onChatMessage,
+        (roundMsg) => {
+          if (this.eventDetails && this.eventDetails.rounds) {
+            const r = this.eventDetails.rounds.find((r: any) => r.id === roundMsg.roundId)
+            if (r) {
+              r.status = roundMsg.status
+            }
+          }
+          if (roundMsg.status === 'IN_PROGRESS') {
+            this.drawnNumbers = []
+            this.winnersList = []
+          }
+          if (onRoundStatusChange) {
+            onRoundStatusChange(roundMsg)
+          }
+        },
+        (viewers: number) => {
+          this.activeViewers = viewers
+        },
+        undefined, // onNaBoa (not used by player)
+        (status: string) => {
+          if (status === 'FINALIZADO') {
+            this.isBingoFinished = true
+            this.disconnectFromGame()
+          }
+        }
+      )
+    },
+
     async fetchEventDetails(eventId: string): Promise<void> {
       try {
         const response = await api.get<ApiResponse<any>>(`/events/${eventId}`)
@@ -168,22 +271,16 @@ export const useGameStore = defineStore('game', {
       }
     },
 
-    /**
-     * Fetches the chronological history of drawn balls for the active round.
-     * Keeps player's UI perfectly synced retroactively even after page reloads.
-     */
     async fetchInitialDraws(eventId: string): Promise<void> {
       try {
         const response = await api.get<ApiResponse<any[]>>(`/events/${eventId}/draws`)
         if (response.data.success && response.data.data) {
-          // Clear any current timeouts and drawnNumbers
           for (const key in this._latencyTimeouts) {
             clearTimeout(this._latencyTimeouts[key])
           }
           this._latencyTimeouts = {}
           this.drawnNumbers = []
 
-          // Add each drawn number through the queue
           response.data.data.forEach((msg: any) => {
             this.addDrawnNumber(msg.payload.ballNumber, msg.timestamp)
           })
@@ -191,78 +288,6 @@ export const useGameStore = defineStore('game', {
       } catch (err) {
         console.error('[Store] Failed to fetch initial drawn numbers:', err)
       }
-    },
-
-    /**
-     * Establishes a STOMP WebSocket connection for the given event.
-     * Cleans up any existing connection before creating a new one.
-     *
-     * @param eventId UUID of the active bingo event
-     */
-    connectToGame(
-      eventId: string,
-      onChatMessage?: (chat: any) => void,
-      onRoundStatusChange?: (round: any) => void
-    ): void {
-      // Prevent duplicate connections
-      if (this._wsClient) {
-        this._wsClient.deactivate()
-        this._wsClient = null
-      }
-
-      this.winnerSerial = null
-      this.winnerCardIndex = null
-      this.showVictoryOverlay = false
-
-      this._wsClient = createWebSocketClient(
-        eventId,
-        this.sessionToken,
-        (ball: WsBallDrawnPayload) => this.addDrawnNumber(ball.ballNumber, ball.timestamp),
-        (ball: WsBallDrawnPayload) => this.retractDrawnNumber(ball.ballNumber),
-        (status: WsConnectionStatus) => this.setConnectionStatus(status),
-        this.ticketId,
-        (announcement: WsAnnouncementPayload) => {
-          this.activeAnnouncement = announcement.text
-        },
-        (override: WsTicketOverridePayload) => {
-          this.applyTicketOverride(override.ballNumber, override.action)
-        },
-        (delay: number) => {
-          this.setLatencySeconds(delay)
-        },
-        (claimMsg) => {
-          if (claimMsg.eventType === 'BINGO_APPROVED') {
-            this.winnerSerial = claimMsg.payload.serial
-            this.winnerCardIndex = claimMsg.payload.cardIndex
-            this.showVictoryOverlay = true
-          }
-        },
-        onChatMessage,
-        (roundMsg) => {
-          if (this.eventDetails && this.eventDetails.rounds) {
-            const r = this.eventDetails.rounds.find((r: any) => r.id === roundMsg.roundId)
-            if (r) {
-              r.status = roundMsg.status
-            }
-          }
-          if (roundMsg.status === 'IN_PROGRESS') {
-            this.drawnNumbers = []
-          }
-          if (onRoundStatusChange) {
-            onRoundStatusChange(roundMsg)
-          }
-        },
-        (viewers: number) => {
-          this.activeViewers = viewers
-        },
-        undefined, // onNaBoa (not used by player)
-        (status: string) => {
-          if (status === 'FINALIZADO') {
-            this.isBingoFinished = true
-            this.disconnectFromGame()
-          }
-        }
-      )
     },
 
     sendChatMessage(text: string): void {
@@ -278,12 +303,10 @@ export const useGameStore = defineStore('game', {
     dismissVictory() {
       this.showVictoryOverlay = false
       this.winnerSerial = null
+      this.winnersList = []
       this.winnerCardIndex = null
     },
 
-    /**
-     * Fetches current ticket overrides from the server to sync on page reload/refresh.
-     */
     async fetchTicketOverrides(serial: string): Promise<void> {
       try {
         const response = await api.get<ApiResponse<any>>(`/tickets/search?serial=${serial.toUpperCase()}`)

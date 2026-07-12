@@ -11,7 +11,7 @@ public interface RoundRepository extends JpaRepository<Round, UUID> {
 
     List<Round> findByEventIdOrderByRoundNumberAsc(UUID eventId);
 
-    Optional<Round> findFirstByEventIdAndStatus(UUID eventId, String status);
+    Optional<Round> findFirstByEventIdAndStatus(UUID eventId, RoundStatus status);
 
     Optional<Round> findFirstByEventIdOrderByRoundNumberAsc(UUID eventId);
 }

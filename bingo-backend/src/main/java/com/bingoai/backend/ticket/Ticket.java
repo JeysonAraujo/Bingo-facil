@@ -31,6 +31,12 @@ public class Ticket {
     @Column(name = "session_token")
     private String sessionToken;
 
+    @Column(name = "player_name", length = 100)
+    private String playerName;
+
+    @Column(name = "player_phone", length = 30)
+    private String playerPhone;
+
     @Column(name = "marked_overrides", columnDefinition = "jsonb", nullable = false)
     @Convert(converter = TicketOverridesConverter.class)
     private List<Integer> markedOverrides = new ArrayList<>();
@@ -55,6 +61,12 @@ public class Ticket {
 
     public String getSessionToken() { return sessionToken; }
     public void setSessionToken(String sessionToken) { this.sessionToken = sessionToken; }
+
+    public String getPlayerName() { return playerName; }
+    public void setPlayerName(String playerName) { this.playerName = playerName; }
+
+    public String getPlayerPhone() { return playerPhone; }
+    public void setPlayerPhone(String playerPhone) { this.playerPhone = playerPhone; }
 
     public List<Integer> getMarkedOverrides() { return markedOverrides; }
     public void setMarkedOverrides(List<Integer> markedOverrides) { this.markedOverrides = markedOverrides; }

@@ -21,13 +21,18 @@ public class AdminTicketController {
      * Used by coordinators to run card audits and forced overrides.
      */
     @GetMapping("/search")
-    public ResponseEntity<ApiResponse<TicketResponseDto>> searchTicket(@RequestParam String serial) {
+    public ResponseEntity<ApiResponse<TicketResponseDto>> searchTicket(
+            @RequestParam String serial,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
         try {
-            TicketResponseDto ticket = adminOverrideService.findTicketBySerial(serial);
+            TicketResponseDto ticket = adminOverrideService.findTicketBySerial(serial, admin);
             return ResponseEntity.ok(ApiResponse.success(ticket));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error("NOT_FOUND", e.getMessage()));
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode())
+                    .body(ApiResponse.error("FORBIDDEN", e.getReason()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("SERVER_ERROR", e.getMessage()));

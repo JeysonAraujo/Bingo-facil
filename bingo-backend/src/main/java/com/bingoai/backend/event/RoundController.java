@@ -29,27 +29,50 @@ public class RoundController {
         this.gameWebSocketController = gameWebSocketController;
     }
 
+    private void validateOwnership(Event event, com.bingoai.backend.admin.Admin admin) {
+        if (admin == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Acesso não autorizado.");
+        }
+        if ("ROLE_SUPER_ADMIN".equals(admin.getRole())) {
+            return;
+        }
+        if (event.getAdmin() == null || !event.getAdmin().getId().equals(admin.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Você não tem permissão para acessar os recursos deste evento.");
+        }
+    }
+
     @PostMapping("/{roundId}/start")
     @Transactional
-    public ResponseEntity<ApiResponse<String>> startRound(@PathVariable @NonNull UUID roundId) {
+    public ResponseEntity<ApiResponse<String>> startRound(
+            @PathVariable @NonNull UUID roundId,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
         Round round = roundRepository.findById(roundId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Round not found"));
 
         Event event = round.getEvent();
+        validateOwnership(event, admin);
+
+        if ("FINALIZADO".equals(event.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível alterar rodadas de um evento finalizado.");
+        }
+        if ("FINISHED".equals(round.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Uma rodada já finalizada não pode ser reiniciada.");
+        }
+
         UUID eventId = event.getId();
 
         // 1. Inverte status de outras rodadas ativas do evento para FINISHED
         List<Round> siblingRounds = roundRepository.findByEventIdOrderByRoundNumberAsc(eventId);
         for (Round sibling : siblingRounds) {
-            if (!sibling.getId().equals(roundId) && "IN_PROGRESS".equals(sibling.getStatus())) {
-                sibling.setStatus("FINISHED");
+            if (!sibling.getId().equals(roundId) && RoundStatus.IN_PROGRESS.equals(sibling.getStatus())) {
+                sibling.setStatus(RoundStatus.FINISHED);
                 roundRepository.save(sibling);
                 gameWebSocketController.broadcastRoundStatus(eventId.toString(), sibling.getId(), sibling.getRoundNumber() != null ? sibling.getRoundNumber() : 0, "FINISHED");
             }
         }
 
         // 2. Define o status da rodada atual como IN_PROGRESS
-        round.setStatus("IN_PROGRESS");
+        round.setStatus(RoundStatus.IN_PROGRESS);
         roundRepository.save(round);
 
         // 3. Zera os draws anteriores para esta rodada
@@ -63,11 +86,19 @@ public class RoundController {
 
     @PostMapping("/{roundId}/finish")
     @Transactional
-    public ResponseEntity<ApiResponse<String>> finishRound(@PathVariable @NonNull UUID roundId) {
+    public ResponseEntity<ApiResponse<String>> finishRound(
+            @PathVariable @NonNull UUID roundId,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
         Round round = roundRepository.findById(roundId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Round not found"));
 
-        round.setStatus("FINISHED");
+        validateOwnership(round.getEvent(), admin);
+
+        if ("FINALIZADO".equals(round.getEvent().getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível alterar rodadas de um evento finalizado.");
+        }
+
+        round.setStatus(RoundStatus.FINISHED);
         roundRepository.save(round);
 
         gameWebSocketController.broadcastRoundStatus(round.getEvent().getId().toString(), round.getId(), round.getRoundNumber() != null ? round.getRoundNumber() : 0, "FINISHED");
@@ -77,28 +108,49 @@ public class RoundController {
 
     @PostMapping("/{roundId}/cancel")
     @Transactional
-    public ResponseEntity<ApiResponse<String>> cancelRound(@PathVariable @NonNull UUID roundId) {
+    public ResponseEntity<ApiResponse<String>> cancelRound(
+            @PathVariable @NonNull UUID roundId,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
         Round round = roundRepository.findById(roundId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Round not found"));
 
-        round.setStatus("PENDING");
+        Event event = round.getEvent();
+        validateOwnership(event, admin);
+
+        if ("FINALIZADO".equals(event.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível alterar rodadas de um evento finalizado.");
+        }
+        if ("FINISHED".equals(round.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Uma rodada já finalizada não pode ser cancelada.");
+        }
+
+        round.setStatus(RoundStatus.PENDING);
         roundRepository.save(round);
 
         // Clear draws
         drawRepository.deleteByRoundId(roundId);
 
-        gameWebSocketController.broadcastRoundStatus(round.getEvent().getId().toString(), round.getId(), round.getRoundNumber() != null ? round.getRoundNumber() : 0, "PENDING");
+        gameWebSocketController.broadcastRoundStatus(event.getId().toString(), round.getId(), round.getRoundNumber() != null ? round.getRoundNumber() : 0, "PENDING");
 
         return ResponseEntity.ok(ApiResponse.success("Round cancelled successfully"));
     }
 
     @DeleteMapping("/{roundId}")
     @Transactional
-    public ResponseEntity<ApiResponse<String>> deleteRound(@PathVariable @NonNull UUID roundId) {
-        if (!roundRepository.existsById(roundId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Round not found");
+    public ResponseEntity<ApiResponse<String>> deleteRound(
+            @PathVariable @NonNull UUID roundId,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
+        Round round = roundRepository.findById(roundId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Round not found"));
+
+        Event event = round.getEvent();
+        validateOwnership(event, admin);
+
+        if ("FINALIZADO".equals(event.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível alterar rodadas de um evento finalizado.");
         }
-        roundRepository.deleteById(roundId);
+
+        roundRepository.delete(round);
 
         return ResponseEntity.ok(ApiResponse.success("Round deleted successfully"));
     }

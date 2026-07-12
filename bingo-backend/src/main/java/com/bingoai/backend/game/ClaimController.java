@@ -35,17 +35,20 @@ public class ClaimController {
     private final GameService gameService;
     private final WinVerificationEngine winVerificationEngine;
     private final SimpMessagingTemplate messagingTemplate;
+    private final com.bingoai.backend.audit.AuditLogService auditLogService;
 
     public ClaimController(TicketRepository ticketRepository,
                            ClaimRepository claimRepository,
                            GameService gameService,
                            WinVerificationEngine winVerificationEngine,
-                           SimpMessagingTemplate messagingTemplate) {
+                           SimpMessagingTemplate messagingTemplate,
+                           com.bingoai.backend.audit.AuditLogService auditLogService) {
         this.ticketRepository = ticketRepository;
         this.claimRepository = claimRepository;
         this.gameService = gameService;
         this.winVerificationEngine = winVerificationEngine;
         this.messagingTemplate = messagingTemplate;
+        this.auditLogService = auditLogService;
     }
 
     @PostMapping
@@ -112,15 +115,28 @@ public class ClaimController {
         // 8. Broadcast claim message over WebSockets for admin dashboard in real time
         BingoClaimMessage wsMessage = new BingoClaimMessage(
                 ticket.getId().toString(),
-                ticket.getSessionToken(),
+                null, // Remove sessionToken
                 saved.getCardIndex(),
                 saved.getId().toString(),
                 saved.getStatus(),
                 ticket.getSerial()
         );
+        wsMessage.getPayload().setPlayerName(ticket.getPlayerName());
         messagingTemplate.convertAndSend("/topic/events/" + eventId + "/claims", wsMessage);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(responseDto));
+    }
+
+    private void validateOwnership(com.bingoai.backend.event.Event event, com.bingoai.backend.admin.Admin admin) {
+        if (admin == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Acesso não autorizado.");
+        }
+        if ("ROLE_SUPER_ADMIN".equals(admin.getRole())) {
+            return;
+        }
+        if (event.getAdmin() == null || !event.getAdmin().getId().equals(admin.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Você não tem permissão para gerenciar os claims deste evento.");
+        }
     }
 
     @GetMapping("/round/{roundId}")
@@ -141,14 +157,24 @@ public class ClaimController {
     }
 
     @PostMapping("/{id}/approve")
-    public ResponseEntity<ApiResponse<ClaimResponseDto>> approveClaim(@PathVariable @NonNull UUID id) {
+    public ResponseEntity<ApiResponse<ClaimResponseDto>> approveClaim(
+            @PathVariable @NonNull UUID id,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
         Claim claim = claimRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Claim not found"));
+
+        validateOwnership(claim.getRound().getEvent(), admin);
+
+        if (com.bingoai.backend.event.EventStatus.FINALIZADO.equals(claim.getRound().getEvent().getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível aprovar claims de um evento finalizado.");
+        }
 
         claim.setStatus("APPROVED");
         Claim saved = claimRepository.save(claim);
         Round round = saved.getRound();
-        round.setStatus("FINISHED");
+        round.setStatus(com.bingoai.backend.event.RoundStatus.FINISHED);
+        
+        auditLogService.logAction(admin, "APPROVE_CLAIM", "Claim " + saved.getId() + " approved. Round " + round.getId() + " finished.");
 
         ClaimResponseDto responseDto = new ClaimResponseDto(
                 saved.getId(),
@@ -163,13 +189,14 @@ public class ClaimController {
         UUID eventId = round.getEvent().getId();
         BingoClaimMessage wsMessage = new BingoClaimMessage(
                 saved.getTicket().getId().toString(),
-                saved.getTicket().getSessionToken(),
+                null, // Remove sessionToken
                 saved.getCardIndex(),
                 saved.getId().toString(),
                 saved.getStatus(),
                 saved.getTicket().getSerial()
         );
         wsMessage.setEventType("BINGO_APPROVED");
+        wsMessage.getPayload().setPlayerName(saved.getTicket().getPlayerName());
         messagingTemplate.convertAndSend("/topic/events/" + eventId + "/claims", wsMessage);
 
         RoundStatusMessage statusMessage = new RoundStatusMessage(round.getId(), round.getRoundNumber() != null ? round.getRoundNumber() : 0, "FINISHED");
@@ -179,12 +206,22 @@ public class ClaimController {
     }
 
     @PostMapping("/{id}/reject")
-    public ResponseEntity<ApiResponse<ClaimResponseDto>> rejectClaim(@PathVariable @NonNull UUID id) {
+    public ResponseEntity<ApiResponse<ClaimResponseDto>> rejectClaim(
+            @PathVariable @NonNull UUID id,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
         Claim claim = claimRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Claim not found"));
 
+        validateOwnership(claim.getRound().getEvent(), admin);
+
+        if (com.bingoai.backend.event.EventStatus.FINALIZADO.equals(claim.getRound().getEvent().getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível rejeitar claims de um evento finalizado.");
+        }
+
         claim.setStatus("REJECTED");
         Claim saved = claimRepository.save(claim);
+        
+        auditLogService.logAction(admin, "REJECT_CLAIM", "Claim " + saved.getId() + " rejected.");
 
         ClaimResponseDto responseDto = new ClaimResponseDto(
                 saved.getId(),
@@ -199,13 +236,14 @@ public class ClaimController {
         UUID eventId = saved.getRound().getEvent().getId();
         BingoClaimMessage wsMessage = new BingoClaimMessage(
                 saved.getTicket().getId().toString(),
-                saved.getTicket().getSessionToken(),
+                null, // Remove sessionToken
                 saved.getCardIndex(),
                 saved.getId().toString(),
                 saved.getStatus(),
                 saved.getTicket().getSerial()
         );
         wsMessage.setEventType("BINGO_REJECTED");
+        wsMessage.getPayload().setPlayerName(saved.getTicket().getPlayerName());
         messagingTemplate.convertAndSend("/topic/events/" + eventId + "/claims", wsMessage);
 
         return ResponseEntity.ok(ApiResponse.success(responseDto));

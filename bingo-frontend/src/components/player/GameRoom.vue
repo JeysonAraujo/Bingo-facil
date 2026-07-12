@@ -276,7 +276,7 @@
                 <button
                   ref="claimBingoBtnRef"
                   class="claim-bingo-btn"
-                  :disabled="!isBingoButtonUnlocked"
+                  :disabled="!isBingoButtonUnlocked || claimCooldown || gameStore.isSubmittingClaim"
                   @click="triggerClaimBingo"
                   aria-label="Gritar Bingo!"
                 >
@@ -364,7 +364,7 @@
 
           <v-card class="bg-slate-900 border-slate-800 pa-6 rounded-xl mb-8 shadow-2xl text-center" style="max-width: 500px; background-color: #121c33 !important; border: 1px solid rgba(255,255,255,0.08) !important;">
             <p class="text-subtitle-1 text-slate-300 mb-2">
-              A cartela com a chave serial
+              Ganhador(es) da rodada:
             </p>
             <div class="text-h3 font-weight-black text-amber-lighten-2 mb-4 tracking-widest uppercase">
               {{ gameStore.winnerSerial }}
@@ -411,12 +411,96 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Activation Modal (LGPD, Name, Phone) -->
+    <v-dialog v-model="showActivationModal" max-width="500" persistent rounded="xl">
+      <v-card class="pa-6" color="#ffffff" theme="light">
+        <div class="text-center mb-4">
+          <v-icon color="indigo-darken-4" size="48">mdi-shield-check</v-icon>
+          <h2 class="text-h5 font-weight-bold mt-2" style="color: #1A237E;">Identificação</h2>
+        </div>
+        
+        <v-card-text class="pa-0 mb-4">
+          <p class="text-body-2 text-grey-darken-2 mb-4 text-center">
+            Para validar sua cartela (<strong>{{ activationSerial }}</strong>) e participar, precisamos de algumas informações.
+          </p>
+          
+          <v-text-field
+            v-model="activationName"
+            label="Seu Nome Completo"
+            variant="outlined"
+            color="indigo-darken-4"
+            density="comfortable"
+            class="mb-3"
+            :disabled="activationLoading"
+          ></v-text-field>
+
+          <v-text-field
+            v-model="activationPhone"
+            label="Telefone (ex: 11999999999)"
+            variant="outlined"
+            color="indigo-darken-4"
+            density="comfortable"
+            class="mb-3"
+            v-mask="'(##) # ####-####'"
+            :disabled="activationLoading"
+          ></v-text-field>
+
+          <v-checkbox
+            v-model="lgpdAccepted"
+            color="indigo-darken-4"
+            class="mt-2"
+            :disabled="activationLoading"
+          >
+            <template v-slot:label>
+              <span class="text-caption text-grey-darken-2" style="line-height: 1.2;">
+                Concordo em disponibilizar meus dados (Nome e Telefone) apenas para uso de consulta e verificação de autenticidade neste sistema de Bingo. Declaro ciência de que os dados não serão compartilhados com terceiros, de acordo com a LGPD.
+              </span>
+            </template>
+          </v-checkbox>
+          
+          <v-alert
+            v-if="activationError"
+            type="error"
+            variant="tonal"
+            class="mt-3 text-caption"
+          >
+            {{ activationError }}
+          </v-alert>
+        </v-card-text>
+
+        <v-card-actions class="pa-0 flex-column gap-2">
+          <v-btn
+            color="indigo-darken-4"
+            variant="flat"
+            size="large"
+            block
+            class="font-weight-bold text-capitalize rounded-lg text-white"
+            :loading="activationLoading"
+            :disabled="!isActivationFormValid"
+            @click="submitActivation"
+          >
+            Entrar na Sala
+          </v-btn>
+          <v-btn
+            variant="text"
+            size="small"
+            block
+            class="text-grey-darken-1 mt-2"
+            :disabled="activationLoading"
+            @click="router.replace('/activate')"
+          >
+            Voltar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-app>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch, type Ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useGameStore } from '../../stores/game'
 import BingoCard from './BingoCard.vue'
 import OnboardingTour from './OnboardingTour.vue'
@@ -424,7 +508,108 @@ import ConnectionStatusBadge from '../shared/ConnectionStatusBadge.vue'
 import type { CardMatrixDto } from '../../services/api'
 
 const router = useRouter()
+const route = useRoute()
 const gameStore = useGameStore()
+
+// Activation Modal Logic
+const showActivationModal = ref(false)
+const activationSerial = ref('')
+const activationName = ref('')
+const activationPhone = ref('')
+const lgpdAccepted = ref(false)
+const activationLoading = ref(false)
+const activationError = ref<string | null>(null)
+
+const isActivationFormValid = computed(() => {
+  return activationName.value.trim().length > 2 &&
+         activationPhone.value.trim().length >= 10 &&
+         lgpdAccepted.value
+})
+
+async function submitActivation() {
+  activationLoading.value = true
+  activationError.value = null
+  const success = await gameStore.activateTicket(
+    activationSerial.value,
+    activationName.value,
+    activationPhone.value
+  )
+  activationLoading.value = false
+  if (success) {
+    showActivationModal.value = false
+    await initializeGame()
+  } else {
+    activationError.value = gameStore.error || 'Falha na ativação da cartela.'
+  }
+}
+
+async function initializeGame() {
+  // Check onboarding status
+  const onboardingDone = localStorage.getItem(ONBOARDING_COMPLETED_KEY)
+  if (!onboardingDone) {
+    showTour.value = true
+  }
+
+  const activeEventId = gameStore.eventId || 'placeholder-event-id'
+  
+  // 0. Recover event details
+  await gameStore.fetchEventDetails(activeEventId)
+  
+  // 1. Recover chronological history from database
+  await gameStore.fetchInitialDraws(activeEventId)
+
+  // 1.5. Recover current ticket overrides from database if serial is present
+  if (gameStore.serial) {
+    await gameStore.fetchTicketOverrides(gameStore.serial)
+  }
+  
+  // 2. Open WebSocket channel for real-time updates
+  gameStore.connectToGame(
+    activeEventId,
+    (chatMsg: any) => {
+      const timeStr = new Date(chatMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      chatMessages.value.push({
+        id: Date.now() + Math.random(),
+        sender: chatMsg.sender,
+        text: chatMsg.text,
+        time: timeStr
+      })
+      if (chatMessages.value.length > 50) {
+        chatMessages.value.shift()
+      }
+      scrollToBottom()
+    },
+    (roundMsg: any) => {
+      if (roundMsg.status === 'FINISHED') {
+        if (hasPendingRounds.value) {
+          showNextRoundAlert.value = true
+        }
+        chatMessages.value.push({
+          id: Date.now(),
+          sender: 'Sistema',
+          text: `Rodada #${roundMsg.roundNumber} finalizada!`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isSystem: true
+        })
+        scrollToBottom()
+      } else if (roundMsg.status === 'IN_PROGRESS') {
+        showNextRoundAlert.value = false
+        chatMessages.value.push({
+          id: Date.now(),
+          sender: 'Sistema',
+          text: `Rodada #${roundMsg.roundNumber} iniciada! Boa sorte!`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isSystem: true
+        })
+        scrollToBottom()
+      }
+    }
+  )
+
+  // Initialize previous marked counts for off-screen flashes
+  const cards = gameStore.ticketMatrix?.cards || []
+  prevMarkedCounts.value = cards.map((card) => getCardMarkedCount(card))
+}
 
 // Victory celebration logic
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -941,75 +1126,18 @@ const hasPendingRounds = computed(() => {
 // Guard & Onboarding Trigger on Mount
 onMounted(async () => {
   if (!gameStore.isAuthenticated) {
-    router.replace('/activate')
+    const serialQuery = route.query.serial as string
+    if (serialQuery && serialQuery.length === 6) {
+      // Show modal
+      activationSerial.value = serialQuery.toUpperCase()
+      showActivationModal.value = true
+    } else {
+      router.replace('/activate')
+    }
     return
   }
 
-  // Check onboarding status
-  const onboardingDone = localStorage.getItem(ONBOARDING_COMPLETED_KEY)
-  if (!onboardingDone) {
-    showTour.value = true
-  }
-
-  const activeEventId = gameStore.eventId || 'placeholder-event-id'
-  
-  // 0. Recover event details (such as initial stream delay and youtube url)
-  await gameStore.fetchEventDetails(activeEventId)
-  
-  // 1. Recover chronological history from database
-  await gameStore.fetchInitialDraws(activeEventId)
-
-  // 1.5. Recover current ticket overrides from database if serial is present
-  if (gameStore.serial) {
-    await gameStore.fetchTicketOverrides(gameStore.serial)
-  }
-  
-  // 2. Open WebSocket channel for real-time updates (draws, announcements, overrides, latency, claims, chat, rounds)
-  gameStore.connectToGame(
-    activeEventId,
-    (chatMsg: any) => {
-      const timeStr = new Date(chatMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      chatMessages.value.push({
-        id: Date.now() + Math.random(),
-        sender: chatMsg.sender,
-        text: chatMsg.text,
-        time: timeStr
-      })
-      if (chatMessages.value.length > 50) {
-        chatMessages.value.shift()
-      }
-      scrollToBottom()
-    },
-    (roundMsg: any) => {
-      if (roundMsg.status === 'FINISHED') {
-        if (hasPendingRounds.value) {
-          showNextRoundAlert.value = true
-        }
-        chatMessages.value.push({
-          id: Date.now(),
-          sender: 'Sistema',
-          text: `Rodada #${roundMsg.roundNumber} finalizada!`,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isSystem: true
-        })
-        scrollToBottom()
-      } else if (roundMsg.status === 'IN_PROGRESS') {
-        showNextRoundAlert.value = false
-        chatMessages.value.push({
-          id: Date.now(),
-          sender: 'Sistema',
-          text: `Rodada #${roundMsg.roundNumber} iniciada! Boa sorte!`,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isSystem: true
-        })
-        scrollToBottom()
-      }
-    }
-  )
-
-  // Initialize previous marked counts for off-screen flashes
-  const cards = gameStore.ticketMatrix?.cards || []
-  prevMarkedCounts.value = cards.map((card) => getCardMarkedCount(card))
+  await initializeGame()
 })
 
 onUnmounted(() => {
@@ -1030,9 +1158,16 @@ function handleTourCompleted() {
   localStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true')
 }
 
+const claimCooldown = ref(false)
+
 async function triggerClaimBingo() {
+  if (claimCooldown.value) return;
+  
   const winningIdx = winningCardIndex.value
   if (winningIdx === null) return
+
+  claimCooldown.value = true
+  setTimeout(() => { claimCooldown.value = false }, 3000) // 3 seconds delay
 
   const success = await gameStore.claimBingo(winningIdx)
   if (success) {

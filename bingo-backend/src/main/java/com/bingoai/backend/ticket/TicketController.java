@@ -32,8 +32,9 @@ public class TicketController {
     @PostMapping("/generate")
     public ResponseEntity<Map<String, Object>> generateTickets(
             @PathVariable UUID eventId,
-            @RequestParam(defaultValue = "100") int quantity) {
-        int generated = ticketService.generateBatch(eventId, quantity);
+            @RequestParam(defaultValue = "100") int quantity,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
+        int generated = ticketService.generateBatch(eventId, quantity, admin);
         Map<String, Object> summary = Map.of(
                 "eventId", eventId,
                 "ticketsGenerated", generated,
@@ -47,9 +48,20 @@ public class TicketController {
             @PathVariable UUID eventId,
             @RequestParam(required = false) String prizes,
             @RequestParam(required = false) String customFooter,
-            @RequestParam(defaultValue = "false") boolean hasCutStrip) {
+            @RequestParam(defaultValue = "false") boolean hasCutStrip,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
         Event event = ticketService.getEvent(eventId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found: " + eventId));
+
+        if (admin == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Acesso não autorizado.");
+        }
+        if (!"ROLE_SUPER_ADMIN".equals(admin.getRole())) {
+            if (event.getAdmin() == null || !event.getAdmin().getId().equals(admin.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Você não tem permissão para acessar os recursos deste evento.");
+            }
+        }
+
         String eventTitle = event.getTitle();
 
         List<Ticket> tickets = ticketService.getTicketsForEvent(eventId);

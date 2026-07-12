@@ -75,15 +75,15 @@ public class EventControllerTests {
                 OffsetDateTime.now(),
                 0,
                 null,
-                "AGUARDANDO",
+                EventStatus.AGUARDANDO,
                 null,
                 Collections.singletonList(
                         new RoundResponseDto(
                                 UUID.randomUUID(),
                                 1,
-                                "PENDING",
+                                RoundStatus.PENDING,
                                 Collections.singletonList(
-                                        new PrizeResponseDto(UUID.randomUUID(), "TV 50 Polegadas", "FULL_CARD", "FULL_GRID")
+                                        new PrizeResponseDto(UUID.randomUUID(), "TV 50 Polegadas", PrizeType.FULL_CARD, "FULL_GRID")
                                 )
                         )
                 ),

@@ -27,6 +27,7 @@ public class GameService {
     private final TicketRepository ticketRepository;
     private final ClaimRepository claimRepository;
     private final WinVerificationEngine winVerificationEngine;
+    private final com.bingoai.backend.audit.AuditLogService auditLogService;
 
     public GameService(EventRepository eventRepository,
                        RoundRepository roundRepository,
@@ -34,7 +35,8 @@ public class GameService {
                        SimpMessagingTemplate messagingTemplate,
                        TicketRepository ticketRepository,
                        ClaimRepository claimRepository,
-                       WinVerificationEngine winVerificationEngine) {
+                       WinVerificationEngine winVerificationEngine,
+                       com.bingoai.backend.audit.AuditLogService auditLogService) {
         this.eventRepository = eventRepository;
         this.roundRepository = roundRepository;
         this.drawRepository = drawRepository;
@@ -42,6 +44,7 @@ public class GameService {
         this.ticketRepository = ticketRepository;
         this.claimRepository = claimRepository;
         this.winVerificationEngine = winVerificationEngine;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -54,13 +57,18 @@ public class GameService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
 
-        return roundRepository.findFirstByEventIdAndStatus(eventId, "IN_PROGRESS")
+        return roundRepository.findFirstByEventIdAndStatus(eventId, com.bingoai.backend.event.RoundStatus.IN_PROGRESS)
                 .orElseGet(() -> {
                     Round r = roundRepository.findFirstByEventIdOrderByRoundNumberAsc(eventId)
                             .orElseThrow(() -> new IllegalArgumentException("No rounds defined for event: " + eventId));
-                    if ("PENDING".equals(r.getStatus())) {
-                        r.setStatus("IN_PROGRESS");
+                    if (com.bingoai.backend.event.RoundStatus.PENDING.equals(r.getStatus())) {
+                        r.setStatus(com.bingoai.backend.event.RoundStatus.IN_PROGRESS);
                         roundRepository.save(r);
+                        
+                        try {
+                            // Log system action
+                            auditLogService.logSystemAction("START_ROUND", "Round " + r.getId() + " started for event " + eventId);
+                        } catch (Exception e) {}
                     }
                     return r;
                 });
@@ -71,7 +79,11 @@ public class GameService {
      */
     @Transactional(readOnly = true)
     public List<DrawBallMessage> getRoundDraws(UUID eventId) {
-        Round round = getOrCreateActiveRound(eventId);
+        java.util.Optional<Round> roundOpt = roundRepository.findFirstByEventIdAndStatus(eventId, com.bingoai.backend.event.RoundStatus.IN_PROGRESS);
+        if (roundOpt.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        Round round = roundOpt.get();
         List<Draw> draws = drawRepository.findByRoundIdOrderByDrawnSequenceAsc(round.getId());
 
         return draws.stream()
@@ -139,13 +151,14 @@ public class GameService {
 
                         com.bingoai.backend.game.dto.BingoClaimMessage claimMessage = new com.bingoai.backend.game.dto.BingoClaimMessage(
                                 ticket.getId().toString(),
-                                ticket.getSessionToken() != null ? ticket.getSessionToken() : "",
+                                null, // Remove sessionToken
                                 cardIndex,
                                 savedClaim.getId().toString(),
                                 savedClaim.getStatus(),
                                 ticket.getSerial(),
                                 true
                         );
+                        claimMessage.getPayload().setPlayerName(ticket.getPlayerName());
                         messagingTemplate.convertAndSend(
                                 "/topic/events/" + eventId + "/claims",
                                 claimMessage
@@ -185,12 +198,25 @@ public class GameService {
         return new DrawBallMessage(lastDraw.getBallNumber(), lastDraw.getDrawnSequence(), lastDraw.getCreatedAt().toInstant());
     }
 
-    /**
-     * Updates the stream delay for the event and broadcasts it over WebSockets.
-     */
-    public void updateStreamDelay(UUID eventId, int delay) {
+    public void updateStreamDelay(UUID eventId, int delay, com.bingoai.backend.admin.Admin admin) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
+        
+        if (!checkEventAdmin(eventId, admin)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "Você não tem permissão para alterar as configurações deste evento.");
+        }
+        
+        if (com.bingoai.backend.event.EventStatus.FINALIZADO.equals(event.getStatus())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Não é possível alterar as configurações de um evento finalizado.");
+        }
+
+        if (delay < 0 || delay > 120) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "O delay de transmissão deve estar entre 0 e 120 segundos.");
+        }
+
         event.setStreamDelaySeconds(delay);
         eventRepository.save(event);
 

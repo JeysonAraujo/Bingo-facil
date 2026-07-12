@@ -6,13 +6,13 @@ import java.util.UUID;
 public class RoundResponseDto {
     private UUID id;
     private Integer roundNumber;
-    private String status;
+    private com.bingoai.backend.event.RoundStatus status;
     private List<PrizeResponseDto> prizes;
 
     public RoundResponseDto() {
     }
 
-    public RoundResponseDto(UUID id, Integer roundNumber, String status, List<PrizeResponseDto> prizes) {
+    public RoundResponseDto(UUID id, Integer roundNumber, com.bingoai.backend.event.RoundStatus status, List<PrizeResponseDto> prizes) {
         this.id = id;
         this.roundNumber = roundNumber;
         this.status = status;
@@ -35,11 +35,11 @@ public class RoundResponseDto {
         this.roundNumber = roundNumber;
     }
 
-    public String getStatus() {
+    public com.bingoai.backend.event.RoundStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(com.bingoai.backend.event.RoundStatus status) {
         this.status = status;
     }
 

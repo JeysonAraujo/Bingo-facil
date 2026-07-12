@@ -1,0 +1,12 @@
+CREATE TABLE audit_logs (
+    id UUID PRIMARY KEY,
+    admin_id UUID,
+    action VARCHAR(255) NOT NULL,
+    details TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE SET NULL
+);
+
+ALTER TABLE events ADD CONSTRAINT chk_event_status CHECK (status IN ('AGUARDANDO', 'ATIVO', 'FINALIZADO'));
+ALTER TABLE rounds ADD CONSTRAINT chk_round_status CHECK (status IN ('PENDING', 'IN_PROGRESS', 'FINISHED'));
+ALTER TABLE prizes ADD CONSTRAINT chk_prize_type CHECK (type IN ('LINE', 'COLUMN', 'FULL_CARD', 'CORNERS', 'CROSS'));

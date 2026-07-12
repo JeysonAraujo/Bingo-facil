@@ -69,6 +69,7 @@ public class BingoClaimMessage {
         private String status;
         private String serial;
         private boolean automatic;
+        private String playerName;
 
         public Payload() {
         }
@@ -141,6 +142,14 @@ public class BingoClaimMessage {
 
         public void setAutomatic(boolean automatic) {
             this.automatic = automatic;
+        }
+
+        public String getPlayerName() {
+            return playerName;
+        }
+
+        public void setPlayerName(String playerName) {
+            this.playerName = playerName;
         }
     }
 }

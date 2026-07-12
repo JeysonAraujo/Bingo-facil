@@ -102,4 +102,37 @@ public class EventController {
         EventResponseDto updated = eventService.saveHeaderImage(id, file, admin);
         return ResponseEntity.ok(ApiResponse.success(updated));
     }
+
+    @DeleteMapping("/{id}/header-image")
+    public ResponseEntity<ApiResponse<EventResponseDto>> deleteHeaderImage(
+            @PathVariable @NonNull UUID id,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.bingoai.backend.admin.Admin admin) {
+        EventResponseDto updated = eventService.deleteHeaderImage(id, admin);
+        return ResponseEntity.ok(ApiResponse.success(updated));
+    }
+
+    @GetMapping("/{id}/header-image")
+    public ResponseEntity<byte[]> getHeaderImage(@PathVariable @NonNull UUID id) {
+        try {
+            EventResponseDto eventDto = eventService.getEventById(id);
+            String path = eventDto.getHeaderImageUrl();
+            if (path == null || path.trim().isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            java.io.File file = new java.io.File(path);
+            if (!file.exists()) {
+                return ResponseEntity.notFound().build();
+            }
+            byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
+            String contentType = java.nio.file.Files.probeContentType(file.toPath());
+            if (contentType == null) {
+                contentType = "image/png";
+            }
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.parseMediaType(contentType))
+                    .body(bytes);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 }

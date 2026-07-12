@@ -994,7 +994,7 @@ const handleHeaderImageUpload = async (val: any) => {
 }
 
 const handleStartRound = async (roundId: string) => {
-  const confirm = window.confirm('Deseja iniciar esta rodada? Isso marcará outras rodadas como finalizadas e apagará os números sorteados da rodada atual.')
+  const confirm = window.confirm('Deseja iniciar a rodada?')
   if (confirm) {
     const success = await adminStore.startRound(roundId)
     if (success) {
@@ -1005,9 +1005,12 @@ const handleStartRound = async (roundId: string) => {
 }
 
 const handleFinishRound = async (roundId: string) => {
-  const success = await adminStore.finishRound(roundId)
-  if (success) {
-    await adminStore.fetchConsoleEventDetails(eventId)
+  const confirm = window.confirm('Deseja finalizar a rodada?')
+  if (confirm) {
+    const success = await adminStore.finishRound(roundId)
+    if (success) {
+      await adminStore.fetchConsoleEventDetails(eventId)
+    }
   }
 }
 
