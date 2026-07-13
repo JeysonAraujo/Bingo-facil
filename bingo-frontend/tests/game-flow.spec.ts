@@ -2,6 +2,24 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Bingo-AI E2E Game Flow', () => {
   test.beforeEach(async ({ page }) => {
+    // Intercept ticket validation API
+    await page.route('**/api/v1/tickets/validate?serial=TEST12', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            serial: 'TEST12',
+            eventId: 'mock-event-uuid',
+            eventTitle: 'Sorteio Especial de Teste E2E',
+            eventHeaderImage: '',
+            activated: false
+          }
+        })
+      });
+    });
+
     // Intercept ticket activation API
     await page.route('**/api/v1/tickets/activate', async (route) => {
       await route.fulfill({
@@ -85,15 +103,31 @@ test.describe('Bingo-AI E2E Game Flow', () => {
     await expect(page.locator('h1.activation-title')).toHaveText('Ativar Cartela');
   });
 
-  test('should activate ticket and redirect to game room', async ({ page }) => {
+  test('should activate ticket and redirect to game room, then fill LGPD modal', async ({ page }) => {
     await page.goto('/activate');
 
     // Fill the serial input field
     const serialInput = page.locator('#serial-input');
     await serialInput.fill('TEST12');
 
+    // Click Continuar
+    await page.getByRole('button', { name: /continuar/i }).click();
+
     // Wait for redirect to /game
     await expect(page).toHaveURL(/.*\/game/);
+
+    // Now we are in GameRoom, the LGPD modal should be visible
+    const nameInput = page.getByLabel('Seu Nome Completo');
+    await expect(nameInput).toBeVisible();
+    await nameInput.fill('João da Silva');
+
+    const phoneInput = page.getByLabel('Telefone (ex: 11999999999)');
+    await phoneInput.fill('11988887777');
+
+    await page.getByText('Concordo em disponibilizar meus dados').click();
+
+    const submitBtn = page.getByRole('button', { name: /entrar na sala/i }).first();
+    await submitBtn.click();
 
     // Verify main landmarks are visible
     await expect(page.locator('#youtube-stream-container')).toBeVisible();
@@ -103,7 +137,14 @@ test.describe('Bingo-AI E2E Game Flow', () => {
   test('should display the onboarding tour on first load', async ({ page }) => {
     await page.goto('/activate');
     await page.locator('#serial-input').fill('TEST12');
+    await page.getByRole('button', { name: /continuar/i }).click();
     await expect(page).toHaveURL(/.*\/game/);
+
+    // Fill LGPD Modal because it blocks everything
+    await page.getByLabel('Seu Nome Completo').fill('João da Silva');
+    await page.getByLabel('Telefone (ex: 11999999999)').fill('11988887777');
+    await page.getByText('Concordo em disponibilizar meus dados').click();
+    await page.getByRole('button', { name: /entrar na sala/i }).first().click();
 
     // Check if the onboarding tour overlay is present
     const tourOverlay = page.locator('.v-overlay:has-text("Tutorial")');
@@ -122,6 +163,7 @@ test.describe('Bingo-AI E2E Game Flow', () => {
   test('should respect accessibility standards (WCAG AA)', async ({ page }) => {
     await page.goto('/activate');
     await page.locator('#serial-input').fill('TEST12');
+    await page.getByRole('button', { name: /continuar/i }).click();
     await expect(page).toHaveURL(/.*\/game/);
 
     // Verify presence of aria-labels on interactive regions
