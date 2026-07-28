@@ -36,6 +36,10 @@ public class AuthController {
         Admin admin = adminRepository.findByUsername(request.username())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário ou senha inválidos."));
 
+        if (!admin.isActive()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Esta conta foi desativada.");
+        }
+
         if (!passwordEncoder.matches(request.password(), admin.getPassword())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário ou senha inválidos.");
         }

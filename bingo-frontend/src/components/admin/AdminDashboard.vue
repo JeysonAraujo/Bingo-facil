@@ -17,6 +17,15 @@
       <div class="d-flex align-center">
         <v-btn
           v-if="authStore.isSuperAdmin"
+          color="teal-darken-1"
+          prepend-icon="mdi-account-cog"
+          class="mr-3 font-weight-bold text-white rounded-lg elevation-1"
+          @click="openAdminsDialog"
+        >
+          Gerenciar Admins
+        </v-btn>
+        <v-btn
+          v-if="authStore.isSuperAdmin"
           color="amber-darken-2"
           prepend-icon="mdi-account-plus"
           class="mr-3 font-weight-bold text-white rounded-lg elevation-1"
@@ -306,6 +315,109 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Gerenciamento de Administradores Dialog -->
+    <v-dialog v-model="isAdminsDialogOpen" max-width="900px" persistent>
+      <v-card class="rounded-xl pa-5 text-white bg-slate-900 border-card-premium">
+        <div class="d-flex justify-space-between align-center border-bottom-indigo pb-3 mb-4">
+          <v-card-title class="text-h5 font-weight-bold text-primary pa-0 d-flex align-center">
+            <v-icon icon="mdi-account-cog" class="mr-2" color="primary"></v-icon>
+            Gerenciar Administradores
+          </v-card-title>
+          <v-btn icon="mdi-close" variant="text" color="grey-lighten-1" @click="isAdminsDialogOpen = false"></v-btn>
+        </div>
+
+        <v-card-text class="pa-0">
+          <v-table class="bg-transparent text-white border-subcard rounded-lg overflow-hidden">
+            <thead class="bg-indigo-darken-4">
+              <tr>
+                <th class="text-left font-weight-bold text-white">Usuário</th>
+                <th class="text-left font-weight-bold text-white">E-mail</th>
+                <th class="text-left font-weight-bold text-white">Tipo</th>
+                <th class="text-center font-weight-bold text-white">Status</th>
+                <th class="text-center font-weight-bold text-white">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="admin in adminStore.managedAdmins" :key="admin.id" class="border-bottom-grey hover-row">
+                <td class="font-weight-bold text-capitalize text-indigo-darken-4">{{ admin.username }}</td>
+                <td class="font-weight text-indigo-darken-1">{{ admin.email }}</td>
+                <td>
+                  <v-chip
+                    size="small"
+                    :color="admin.role === 'ROLE_SUPER_ADMIN' ? 'amber-darken-3' : 'indigo-lighten-2'"
+                    variant="flat"
+                    class="font-weight-bold text-white text-uppercase"
+                  >
+                    {{ admin.role === 'ROLE_SUPER_ADMIN' ? 'SuperAdmin' : 'Admin' }}
+                  </v-chip>
+                </td>
+                <td class="text-center">
+                  <v-chip
+                    size="small"
+                    :color="admin.active ? 'green-darken-1' : 'red-darken-1'"
+                    variant="flat"
+                    class="font-weight-bold text-white"
+                  >
+                    {{ admin.active ? 'Ativo' : 'Inativo' }}
+                  </v-chip>
+                </td>
+                <td class="text-center">
+                  <div class="d-flex justify-center gap-2 align-center py-1">
+                    <!-- Toggle Active Switch or Button -->
+                    <v-btn
+                      :color="admin.active ? 'warning' : 'success'"
+                      variant="outlined"
+                      size="x-small"
+                      class="font-weight-bold text-capitalize"
+                      :disabled="admin.username === authStore.username || adminStore.isLoading"
+                      @click="handleToggleActive(admin.id)"
+                    >
+                      {{ admin.active ? 'Desativar' : 'Ativar' }}
+                    </v-btn>
+
+                    <!-- Send Password Reset Code -->
+                    <v-btn
+                      color="indigo-lighten-3"
+                      variant="flat"
+                      size="x-small"
+                      prepend-icon="mdi-email-key"
+                      class="font-weight-bold text-capitalize text-indigo-darken-4"
+                      :disabled="adminStore.isLoading"
+                      @click="handleSendResetCode(admin.id)"
+                    >
+                      Código
+                    </v-btn>
+
+                    <!-- Delete -->
+                    <v-btn
+                      icon="mdi-delete"
+                      variant="text"
+                      color="red-lighten-1"
+                      size="small"
+                      :disabled="admin.username === authStore.username || adminStore.isLoading"
+                      @click="handleDeleteAdmin(admin.id)"
+                    ></v-btn>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="adminStore.managedAdmins.length === 0">
+                <td colspan="5" class="text-center py-4 text-grey-darken-1">
+                  Nenhum administrador cadastrado.
+                </td>
+              </tr>
+            </tbody>
+          </v-table>
+        </v-card-text>
+
+        <v-card-actions class="px-0 pt-4">
+          <v-spacer></v-spacer>
+          <v-btn color="grey-lighten-1" variant="outlined" class="rounded-lg font-weight-bold" @click="isAdminsDialogOpen = false">
+            Fechar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -332,6 +444,37 @@ const editForm = ref({
   scheduledAt: '',
   youtubeUrl: ''
 })
+
+const isAdminsDialogOpen = ref(false)
+
+const openAdminsDialog = async () => {
+  isAdminsDialogOpen.value = true
+  await adminStore.fetchManagedAdmins()
+}
+
+const handleToggleActive = async (adminId: string) => {
+  const confirmAction = window.confirm('Deseja realmente alterar o status ativo deste administrador?')
+  if (confirmAction) {
+    await adminStore.toggleAdminActive(adminId)
+  }
+}
+
+const handleSendResetCode = async (adminId: string) => {
+  const confirmAction = window.confirm('Deseja realmente gerar um código de recuperação de senha para este administrador? O código será exibido no console do servidor.')
+  if (confirmAction) {
+    const success = await adminStore.sendAdminResetCode(adminId)
+    if (success) {
+      alert('Código gerado com sucesso! Verifique o console do backend.')
+    }
+  }
+}
+
+const handleDeleteAdmin = async (adminId: string) => {
+  const confirmAction = window.confirm('Deseja realmente EXCLUIR este administrador definitivamente? Esta ação não pode ser desfeita.')
+  if (confirmAction) {
+    await adminStore.deleteAdmin(adminId)
+  }
+}
 
 onMounted(() => {
   adminStore.fetchEvents()

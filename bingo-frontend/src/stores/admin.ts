@@ -16,7 +16,8 @@ export const useAdminStore = defineStore('admin', {
     _wsAdminClient: null as any,
     searchedTicket: null as any, // TicketResponseDto for overrides
     claims: [] as any[],
-    ticketsNaBoaCount: 0
+    ticketsNaBoaCount: 0,
+    managedAdmins: [] as any[]
   }),
 
   actions: {
@@ -594,6 +595,89 @@ export const useAdminStore = defineStore('admin', {
       } catch (err: any) {
         console.error('[AdminStore] Failed to update stream delay:', err)
         this.error = err.response?.data?.error?.message || err.message || 'Falha ao atualizar o delay da transmissão'
+      }
+    },
+
+    async fetchManagedAdmins() {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.get<ApiResponse<any[]>>('/admin/management/admins')
+        if (response.data.success) {
+          this.managedAdmins = response.data.data
+        } else {
+          this.error = response.data.error?.message || 'Falha ao buscar administradores'
+        }
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao carregar administradores'
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async toggleAdminActive(adminId: string): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.put<ApiResponse<any>>(`/admin/management/admins/${adminId}/toggle-active`)
+        if (response.data.success) {
+          const index = this.managedAdmins.findIndex(a => a.id === adminId)
+          if (index !== -1) {
+            this.managedAdmins[index] = response.data.data
+          }
+          return true
+        } else {
+          this.error = response.data.error?.message || 'Falha ao alterar status'
+          return false
+        }
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao alterar status'
+        return false
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async sendAdminResetCode(adminId: string): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.post<ApiResponse<string>>(`/admin/management/admins/${adminId}/send-reset-code`)
+        if (response.data.success) {
+          return true
+        } else {
+          this.error = response.data.error?.message || 'Falha ao enviar código'
+          return false
+        }
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao enviar código'
+        return false
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async deleteAdmin(adminId: string): Promise<boolean> {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.delete<ApiResponse<string>>(`/admin/management/admins/${adminId}`)
+        if (response.data.success) {
+          this.managedAdmins = this.managedAdmins.filter(a => a.id !== adminId)
+          return true
+        } else {
+          this.error = response.data.error?.message || 'Falha ao excluir administrador'
+          return false
+        }
+      } catch (err: any) {
+        console.error(err)
+        this.error = err.response?.data?.error?.message || err.message || 'Erro ao excluir administrador'
+        return false
+      } finally {
+        this.isLoading = false
       }
     }
   }

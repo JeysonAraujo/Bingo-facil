@@ -13,4 +13,5 @@ public interface AdminSessionRepository extends JpaRepository<AdminSession, UUID
     Optional<AdminSession> findByToken(@org.springframework.data.repository.query.Param("token") String token);
     void deleteByToken(String token);
     void deleteByExpiresAtBefore(OffsetDateTime now);
+    void deleteByAdminId(UUID adminId);
 }

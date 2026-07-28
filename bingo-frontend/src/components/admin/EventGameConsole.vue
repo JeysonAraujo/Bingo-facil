@@ -73,6 +73,14 @@
           <v-window v-model="activeTab" class="pa-6">
             <!-- TAB 1: Live Sorteio Grid Board -->
             <v-window-item value="draw">
+              <!-- No Round Active Alert Banner -->
+              <div v-if="!isRoundInProgress" class="bg-red-darken-4 text-white py-3 px-6 rounded-lg d-flex align-center gap-3 mb-6">
+                <v-icon icon="mdi-alert-circle-outline" color="amber-darken-1" class="animated-shake"></v-icon>
+                <span class="text-subtitle-2 font-weight-bold">
+                  Painel Bloqueado: Nenhuma rodada está em andamento. Inicie uma rodada abaixo para liberar o sorteio.
+                </span>
+              </div>
+
               <!-- Pending Draw Alert Banner -->
               <div v-if="pendingBall !== null" class="pending-alert-banner py-3 px-6 rounded-lg d-flex justify-between align-center mb-6">
                 <div class="d-flex align-center gap-3">
@@ -99,7 +107,7 @@
               </div>
 
               <!-- The 75-Key Grid Panel -->
-              <div class="bingo-grid-board">
+              <div class="bingo-grid-board" :class="{ 'board-disabled': !isRoundInProgress }">
                 <div
                   v-for="ball in orderedBalls"
                   :key="ball"
@@ -862,7 +870,7 @@
               { title: 'Janelão (Borda Externa)', value: 'OUTER_BORDER' },
               { title: 'Janelinha (Borda Interna)', value: 'INNER_BORDER' }
             ]"
-            label="Padrão de Vitória"
+            label="Padrão de Marcação"
             variant="outlined"
             density="compact"
             bg-color="slate-950"
@@ -903,10 +911,21 @@ const adminStore = useAdminStore()
 
 const eventId = route.params.eventId as string
 
+interface PrizeForm {
+  name: string
+  type: string
+  drawPattern?: string
+}
+
+interface RoundForm {
+  roundNumber: number
+  prizes: PrizeForm[]
+}
+
 // Round Management Modal state
 const isRoundModalOpen = ref(false)
 const editingRound = ref<any>(null)
-const roundForm = ref({
+const roundForm = ref<RoundForm>({
   roundNumber: 1,
   prizes: [
     { name: 'Cartela Cheia', type: 'FULL_CARD', drawPattern: 'FULL_GRID' }
@@ -919,14 +938,14 @@ const openRoundModal = (round?: any) => {
     editingRound.value = round
     roundForm.value = {
       roundNumber: round.roundNumber,
-      prizes: round.prizes && round.prizes.length > 0 ? JSON.parse(JSON.stringify(round.prizes)) : [{ name: 'Cartela Cheia', type: 'FULL_CARD', drawPattern: 'FULL_GRID' }]
+      prizes: round.prizes && round.prizes.length > 0 ? JSON.parse(JSON.stringify(round.prizes)) : [{ name: ' ', type: 'FULL_CARD', drawPattern: 'FULL_GRID' }]
     }
   } else {
     editingRound.value = null
     const nextRound = adminStore.activeConsoleEvent?.rounds?.length ? adminStore.activeConsoleEvent.rounds.length + 1 : 1
     roundForm.value = {
       roundNumber: nextRound,
-      prizes: [{ name: 'Cartela Cheia', type: 'FULL_CARD', drawPattern: 'FULL_GRID' }]
+      prizes: [{ name: ' ', type: 'FULL_CARD', drawPattern: 'FULL_GRID' }]
     }
   }
   isRoundModalOpen.value = true
@@ -1019,6 +1038,10 @@ const handleHeaderImageUpload = async (val: any) => {
 }
 
 const handleStartRound = async (roundId: string) => {
+  if (adminStore.activeConsoleEvent?.status !== 'ATIVO') {
+    alert('Não é possível iniciar uma rodada com o evento no estado AGUARDANDO. Inicie o evento no painel principal primeiro.')
+    return
+  }
   const confirm = window.confirm('Deseja iniciar a rodada?')
   if (confirm) {
     const success = await adminStore.startRound(roundId)
@@ -1067,6 +1090,9 @@ const handleDownloadPdf = async () => {
 // Computed properties
 const eventTitle = computed(() => adminStore.activeConsoleEvent?.title || 'Carregando…')
 const isConnected = computed(() => !!adminStore._wsAdminClient?.connected)
+const isRoundInProgress = computed(() => {
+  return adminStore.activeConsoleEvent?.rounds?.some(r => r.status === 'IN_PROGRESS') || false
+})
 
 const orderedBalls = computed(() => {
   const list = []
@@ -1272,6 +1298,7 @@ const getLetterForBall = (ball: number): string => {
  * and confirms draw on second click if done within 500ms (Double Click guard).
  */
 const handleBallClick = (ball: number) => {
+  if (!isRoundInProgress.value) return
   if (isDrawn(ball)) return
 
   if (pendingBall.value === ball) {
@@ -1295,6 +1322,7 @@ const handleBallClick = (ball: number) => {
  * Triggers the actual draw over STOMP WebSocket draws app prefix.
  */
 const confirmDraw = (ball: number) => {
+  if (!isRoundInProgress.value) return
   if (isDrawn(ball)) return
 
   const nextSequence = adminStore.drawnConsoleNumbers.length + 1
@@ -1369,6 +1397,9 @@ const toggleCellOverride = (ball: number) => {
  * - Pressing 'Ctrl+Z' triggers the UNDO operation.
  */
 const handleGlobalKeydown = (event: KeyboardEvent) => {
+  // Disable if no active round is running
+  if (!isRoundInProgress.value) return
+
   // Lock hotkeys if focused on textarea or text fields (e.g. search / announcemet text fields)
   const activeEl = document.activeElement
   if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
@@ -1858,5 +1889,10 @@ watch(
 
 .bg-emerald-darken-2 {
   background-color: #059669 !important;
+}
+
+.board-disabled {
+  opacity: 0.55;
+  pointer-events: none !important;
 }
 </style>

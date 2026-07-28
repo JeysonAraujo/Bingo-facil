@@ -45,6 +45,11 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
                 if (session.getExpiresAt().isAfter(OffsetDateTime.now())) {
                     Admin admin = session.getAdmin();
 
+                    if (!admin.isActive()) {
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Conta desativada.");
+                        return;
+                    }
+
                     SimpleGrantedAuthority authority = new SimpleGrantedAuthority(admin.getRole());
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                             admin,

@@ -170,7 +170,7 @@
 
                   <!-- Dynamic Prizes in Round -->
                   <v-row v-for="(prize, pIndex) in round.prizes" :key="pIndex" class="align-center border-bottom-grey py-2 px-1">
-                    <v-col cols="12" sm="4" class="py-1">
+                    <v-col cols="12" sm="6" class="py-1">
                       <v-text-field
                         v-model="prize.name"
                         label="Nome do Prêmio"
@@ -182,7 +182,7 @@
                         hide-details="auto"
                       ></v-text-field>
                     </v-col>
-                    <v-col cols="12" sm="4" class="py-1">
+                    <v-col cols="10" sm="5" class="py-1">
                       <v-select
                         v-model="prize.type"
                         label="Tipo de Marcação"
@@ -193,18 +193,6 @@
                         density="compact"
                         hide-details="auto"
                         @update:model-value="onPrizeTypeChange(rIndex, pIndex)"
-                      ></v-select>
-                    </v-col>
-                    <v-col cols="10" sm="3" class="py-1">
-                      <v-select
-                        v-model="prize.drawPattern"
-                        label="Padrão de Vitória"
-                        :items="drawPatterns"
-                        item-title="title"
-                        item-value="value"
-                        variant="outlined"
-                        density="compact"
-                        hide-details="auto"
                       ></v-select>
                     </v-col>
                     <v-col cols="2" sm="1" class="text-center py-1">
@@ -313,10 +301,7 @@ const addRound = () => {
   const roundNumber = rounds.length + 1
   rounds.push({
     roundNumber,
-    prizes: [
-      { name: 'Prêmio da Linha', type: 'LINE', drawPattern: 'ANY_LINE' },
-      { name: 'Cartela Cheia', type: 'FULL_CARD', drawPattern: 'FULL_GRID' }
-    ]
+    prizes: []
   })
   // Expand the newly added round
   activePanel.value = [rounds.length - 1]

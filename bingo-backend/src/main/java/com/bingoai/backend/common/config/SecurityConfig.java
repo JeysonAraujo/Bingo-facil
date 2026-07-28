@@ -46,6 +46,7 @@ public class SecurityConfig {
 
                 // SuperAdmin-only routes
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/auth/signup").hasRole("SUPER_ADMIN")
+                .requestMatchers("/api/v1/admin/management/**").hasRole("SUPER_ADMIN")
 
                 // Protected Admin-only routes
                 .requestMatchers("/api/v1/events/**").hasAnyRole("ADMIN", "SUPER_ADMIN")

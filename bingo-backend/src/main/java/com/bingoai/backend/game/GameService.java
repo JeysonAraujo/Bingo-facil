@@ -95,7 +95,8 @@ public class GameService {
      * Records a new ball draw in the database for the active round.
      */
     public DrawBallMessage recordDraw(UUID eventId, int ballNumber, int sequence) {
-        Round round = getOrCreateActiveRound(eventId);
+        Round round = roundRepository.findFirstByEventIdAndStatus(eventId, com.bingoai.backend.event.RoundStatus.IN_PROGRESS)
+                .orElseThrow(() -> new IllegalStateException("Nenhuma rodada está em andamento para este evento. Inicie uma rodada antes de sortear números."));
 
         if (drawRepository.existsByRoundIdAndBallNumber(round.getId(), ballNumber)) {
             throw new IllegalStateException("Ball " + ballNumber + " has already been drawn in this round");
@@ -188,7 +189,8 @@ public class GameService {
      * for the active round, returning its representation for visual retraction broadcast.
      */
     public DrawBallMessage retractLastDraw(UUID eventId) {
-        Round round = getOrCreateActiveRound(eventId);
+        Round round = roundRepository.findFirstByEventIdAndStatus(eventId, com.bingoai.backend.event.RoundStatus.IN_PROGRESS)
+                .orElseThrow(() -> new IllegalStateException("Nenhuma rodada está em andamento para este evento."));
 
         Draw lastDraw = drawRepository.findTopByRoundIdOrderByDrawnSequenceDesc(round.getId())
                 .orElseThrow(() -> new IllegalStateException("No draws found to retract in active round"));

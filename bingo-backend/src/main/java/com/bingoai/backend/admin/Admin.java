@@ -30,6 +30,9 @@ public class Admin {
     @Column(name = "reset_code_expires_at")
     private OffsetDateTime resetCodeExpiresAt;
 
+    @Column(nullable = false)
+    private boolean active = true;
+
     public Admin() {
     }
 
@@ -94,5 +97,13 @@ public class Admin {
 
     public void setResetCodeExpiresAt(OffsetDateTime resetCodeExpiresAt) {
         this.resetCodeExpiresAt = resetCodeExpiresAt;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 }

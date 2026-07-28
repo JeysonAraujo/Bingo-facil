@@ -52,8 +52,11 @@ public class RoundController {
         Event event = round.getEvent();
         validateOwnership(event, admin);
 
-        if ("FINALIZADO".equals(event.getStatus())) {
+        if (EventStatus.FINALIZADO.equals(event.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível alterar rodadas de um evento finalizado.");
+        }
+        if (EventStatus.AGUARDANDO.equals(event.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível iniciar uma rodada com o evento no estado AGUARDANDO. Inicie o evento primeiro.");
         }
         if ("FINISHED".equals(round.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Uma rodada já finalizada não pode ser reiniciada.");
@@ -94,7 +97,7 @@ public class RoundController {
 
         validateOwnership(round.getEvent(), admin);
 
-        if ("FINALIZADO".equals(round.getEvent().getStatus())) {
+        if (EventStatus.FINALIZADO.equals(round.getEvent().getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível alterar rodadas de um evento finalizado.");
         }
 
@@ -117,7 +120,7 @@ public class RoundController {
         Event event = round.getEvent();
         validateOwnership(event, admin);
 
-        if ("FINALIZADO".equals(event.getStatus())) {
+        if (EventStatus.FINALIZADO.equals(event.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível alterar rodadas de um evento finalizado.");
         }
         if ("FINISHED".equals(round.getStatus())) {
@@ -146,7 +149,7 @@ public class RoundController {
         Event event = round.getEvent();
         validateOwnership(event, admin);
 
-        if ("FINALIZADO".equals(event.getStatus())) {
+        if (EventStatus.FINALIZADO.equals(event.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível alterar rodadas de um evento finalizado.");
         }
 
