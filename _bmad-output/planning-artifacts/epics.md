@@ -84,6 +84,14 @@ Implement a client-side Pinia latency alignment queue that delays drawn number a
 Establish a server-side win claims audit engine to prevent tampering, coupled with moderator approval views and immersive victory celebration overlays.
 **FRs covered:** FR7
 
+### Epic 6: Security, Stabilization & Quality Audit Fixes
+Enforce strict security, data integrity, LGPD compliance, CI automation, and UX stabilization across backend database/filters and frontend screens.
+**FRs covered:** Security Audit (C-02, C-03), LGPD Privacy, CI/CD Actions, UX Flow.
+
+### Epic 7: Local Test Optimization, Admin UI Redesign, and Gameplay Safeguards
+Resolve local workspace media upload directories, support advanced prize enums (Diagonal, Border), redesign admin control consoles with vertical sorting and layout optimization, and introduce SuperAdmin management tools and game flow constraints.
+**FRs covered:** FR1 (prizes), FR2 (headers/PDFs), FR6 (draw guards), FR8 (admin management).
+
 ---
 
 ## Epic 1: Event Initialization & Ticket Distribution Infrastructure
@@ -262,3 +270,81 @@ Goal: To complete the verification loop, implementing backend claims verificatio
 - **Then** a side-by-side visual audit panel highlights the player's card layout matched against the actual drawn numbers in chronological order
 - **When** the Admin clicks "Approve Winner"
 - **Then** a full-screen canvas confetti particle animation and victory sound chime is broadcasted instantly to all active player client rooms.
+
+---
+
+## Epic 6: Security, Stabilization & Quality Audit Fixes
+
+Goal: Enforce strict security, data integrity, LGPD compliance, continuous integration automated builds, and frontend UI flow validations.
+
+### Story 6.1: P0 Security Audit Fixes and Data Integrity
+**As an** Event Coordinator and Player,
+**I want** the platform to be secure and enforce strict data integrity rules,
+**So that** unauthorized access is prevented, game state remains consistent, and player data is safely handled.
+
+**Acceptance Criteria:**
+- **Given** a generated ticket, **When** a player accesses it, **Then** they must provide Name and Phone number, and the session token must be properly rotated upon re-authentication.
+- **Given** a finished round or event, **When** an admin tries to change its status or modify it, **Then** the system must block the action to maintain immutability.
+- **Given** public game events (WebSocket), **When** a claim is approved, **Then** the player's name is broadcasted but the sensitive session token must never be exposed.
+
+### Story 6.2: P1 Stabilization and UX Improvements
+**As an** Event Coordinator and Player,
+**I want** the platform to have a stable, intuitive user experience and secure dependency management,
+**So that** I can easily navigate the game, avoid accidental actions, and trust the integrity of the application.
+
+**Acceptance Criteria:**
+- **Given** a player accessing the app, **When** they land on the initial screen, **Then** they only need to provide the Ticket Serial (or scan a QRCode) and the serial is proactively validated.
+- **Given** a valid ticket serial, **When** the player enters the GameRoom, **Then** a central modal must prompt for Name, Phone (with Brazilian mask), and LGPD consent, blocking access to the board until completed.
+
+### Story 6.3: P2 Quality, Security, and Operations
+**As a** Development Team and Operations Engineer,
+**I want** to implement automated continuous integration, enforce data privacy (LGPD), and guarantee system scalability under concurrent loads,
+**So that** the platform remains stable in production, passes compliance requirements, and prevents race conditions during high-volume events.
+
+**Acceptance Criteria:**
+- **Given** a GitHub repository, **When** a pull request or push is made to the main branch, **Then** a GitHub Actions workflow must automatically build the backend, check frontend vulnerabilities, and run all automated E2E tests.
+- **Given** the requirement to handle player data, **When** a user registers their Name and Phone, **Then** the platform must have a formally documented LGPD Privacy Policy explaining data minimization, legal basis, and the non-sharing of personal data.
+
+---
+
+## Epic 7: Local Test Optimization, Admin UI Redesign, and Gameplay Safeguards
+
+Goal: Optimize paths for local testing, introduce custom prize patterns, redesign and optimize administrative drawing layouts, and enforce account administration and gameplay state controls.
+
+### Story 7.1: Image Upload Path Resolution & PDF Header Fixes
+**As an** Event Coordinator,
+**I want** the header image uploads to work robustly during local testing and render correctly inside the generated PDF ticket batches,
+**So that** I can customize the visual branding of physical ticket prints without encountering server errors or missing images.
+
+**Acceptance Criteria:**
+- **Given** a multipart image file upload request, **When** the admin submits a custom header image, **Then** the backend must save it using standard file operations (`Files.copy`) instead of servlet-container specific transfer methods that fail on relative paths.
+- **Given** an uploaded header image, **When** retrieving it via API or generating the ticket PDF batch, **Then** the path must be dynamically resolved relative to the workspace, ensuring the resource loads correctly across different local execution directories.
+
+### Story 7.2: Custom Prize Type & Admin Control Endpoints Validation
+**As an** Event Coordinator,
+**I want** the administrative round control interface to support advanced winning patterns (diagonal, outer border, inner border) without causing validation errors,
+**So that** I can coordinate more diverse game dynamics for players.
+
+**Acceptance Criteria:**
+- **Given** the round creation payload, **When** I choose custom winning patterns (Diagonal, Outer Border, Inner Border), **Then** the backend must accept and recognize these types.
+- **Given** the admin dashboard dropdown, **When** adding a new round, **Then** options must map directly to valid enum values on the backend instead of outdated values like 'PHYSICAL'.
+
+### Story 7.3: Admin Game Board Redesign & Scroll Optimization
+**As an** Event Coordinator,
+**I want** the drawing board numbers to be arranged in sequential vertical columns and the event audit panels to be grouped cleanly below,
+**So that** I can control draws quickly and verify claims without scanning or scrolling the page continuously.
+
+**Acceptance Criteria:**
+- **Given** the 75-key admin board, **When** rendered, **Then** numbers must progress vertically within sub-columns of 5 under their respective letter headers (B: 1-5, 6-10...; I: 16-20...).
+- **Given** the Claims and Round History sections, **When** rendered on the event console, **Then** they must sit side-by-side underneath the drawing board with internal scrolling rather than expanding the entire page height.
+
+### Story 7.4: Admin Lifecycle Management & Gameplay Constraint Guardrails
+**As a** SuperAdmin,
+**I want** to deactivate, delete, or generate password reset codes for administrator accounts and enforce strict state restrictions on rounds,
+**So that** unauthorized admin activity is prevented and game flow rules are programmatically enforced.
+
+**Acceptance Criteria:**
+- **Given** an administrator account, **When** toggled or deleted by a SuperAdmin, **Then** the backend must block self-deletion/deactivation, invalidate active sessions of the targeted admin, and restrict endpoints to `ROLE_SUPER_ADMIN`.
+- **Given** the event game flow, **When** no round is active, **Then** drawing actions (clicks/hotkeys) must be disabled and display a prominent warning banner.
+- **Given** a round status change, **When** starting a round, **Then** the system must block starting it if the parent event status is `AGUARDANDO` or not `ATIVO`.
+

@@ -70,3 +70,10 @@ development_status:
   6-2-p1-stabilization-and-ux-improvements: done
   6-3-p2-quality-security-and-operations: done
   epic-6-retrospective: optional
+  epic-7: done
+  7-1-image-upload-path-resolution-and-pdf-header-fixes: done
+  7-2-custom-prize-type-and-admin-control-endpoints-validation: done
+  7-3-admin-game-board-redesign-and-scroll-optimization: done
+  7-4-admin-lifecycle-management-and-gameplay-constraint-guardrails: done
+  epic-7-retrospective: optional
+
