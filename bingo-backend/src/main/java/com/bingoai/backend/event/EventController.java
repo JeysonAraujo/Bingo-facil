@@ -120,6 +120,9 @@ public class EventController {
                 return ResponseEntity.notFound().build();
             }
             java.io.File file = new java.io.File(path);
+            if (!file.exists() && new java.io.File("bingo-backend").exists()) {
+                file = new java.io.File("bingo-backend", path);
+            }
             if (!file.exists()) {
                 return ResponseEntity.notFound().build();
             }

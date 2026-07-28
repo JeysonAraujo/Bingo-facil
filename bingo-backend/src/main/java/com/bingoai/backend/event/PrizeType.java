@@ -5,5 +5,8 @@ public enum PrizeType {
     COLUMN,
     CORNERS,
     CROSS,
-    FULL_CARD
+    FULL_CARD,
+    DIAGONAL,
+    OUTER_BORDER,
+    INNER_BORDER
 }

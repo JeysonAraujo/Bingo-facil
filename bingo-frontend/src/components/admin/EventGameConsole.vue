@@ -101,7 +101,7 @@
               <!-- The 75-Key Grid Panel -->
               <div class="bingo-grid-board">
                 <div
-                  v-for="ball in 75"
+                  v-for="ball in orderedBalls"
                   :key="ball"
                   class="ball-key-cell"
                   :class="{
@@ -332,6 +332,107 @@
             </v-window-item>
           </v-window>
         </v-card>
+
+        <!-- Seções de Reivindicação e Histórico reposicionadas abaixo do painel de sorteio -->
+        <v-row class="mt-0">
+          <!-- Fila de Reivindicações (Claims Queue) -->
+          <v-col cols="12" md="6" class="pt-0">
+            <v-card class="bg-slate-900 border-slate-800 rounded-xl pa-6 shadow-2xl d-flex flex-column mb-0 h-100">
+              <div class="d-flex justify-between align-center mb-4">
+                <h2 class="text-h6 font-weight-bold text-white d-flex align-center mb-0">
+                  <v-icon icon="mdi-trophy-outline" class="mr-2" color="amber-darken-1"></v-icon>
+                  Reivindicações de Bingo
+                </h2>
+                <v-chip color="amber-darken-2" size="small" class="text-slate-950 font-weight-bold">
+                  {{ adminStore.claims.filter(c => c.status === 'PENDING').length }} Pendentes
+                </v-chip>
+              </div>
+
+              <!-- Empty Claims State -->
+              <div v-if="adminStore.claims.length === 0" class="d-flex flex-column align-center justify-center py-6 text-center flex-grow-1">
+                <v-icon icon="mdi-help-circle-outline" size="36" color="slate-700" class="mb-2"></v-icon>
+                <span class="text-subtitle-2 text-slate-500 font-weight-bold">Nenhuma reivindicação recebida</span>
+              </div>
+
+              <!-- Claims Queue Scroll Area -->
+              <div v-else class="claims-list-area d-flex flex-column gap-2 overflow-y-auto pr-1 flex-grow-1" style="max-height: 250px;">
+                <div
+                  v-for="claim in adminStore.claims"
+                  :key="claim.claimId"
+                  class="d-flex justify-between align-center bg-slate-950 border-slate-800 pa-3 rounded-lg"
+                >
+                  <div>
+                    <div class="text-caption text-slate-400 d-flex align-center gap-2">
+                      Cartela Serial
+                      <v-chip v-if="claim.automatic" color="amber-darken-4" size="x-small" class="font-weight-black px-1 py-0 height-auto text-white">
+                        Auto
+                      </v-chip>
+                    </div>
+                    <div class="text-subtitle-2 font-weight-black text-amber-lighten-2">
+                      {{ claim.serial }} (Card {{ claim.cardIndex + 1 }})
+                    </div>
+                  </div>
+                  <div class="d-flex align-center gap-2">
+                    <v-chip
+                      v-if="claim.status !== 'PENDING'"
+                      :color="claim.status === 'APPROVED' ? 'success' : 'error'"
+                      size="small"
+                      class="font-weight-black"
+                    >
+                      {{ claim.status }}
+                    </v-chip>
+                    <v-btn
+                      v-if="claim.status === 'PENDING'"
+                      color="indigo-darken-3"
+                      size="small"
+                      class="font-weight-bold rounded-lg text-white"
+                      @click="openAuditModal(claim)"
+                    >
+                      Auditar
+                    </v-btn>
+                  </div>
+                </div>
+              </div>
+            </v-card>
+          </v-col>
+
+          <!-- Chronological Drawings History -->
+          <v-col cols="12" md="6" class="pt-0">
+            <v-card class="bg-slate-900 border-slate-800 rounded-xl pa-6 shadow-2xl d-flex flex-column mb-0 h-100">
+              <div class="d-flex justify-between align-center mb-4">
+                <h2 class="text-h6 font-weight-bold text-white d-flex align-center mb-0">
+                  <v-icon icon="mdi-history" class="mr-2" color="indigo-lighten-2"></v-icon>
+                  Histórico do Round
+                </h2>
+                <v-chip color="slate-700" size="small" class="text-slate-300 font-weight-bold">
+                  {{ adminStore.drawnConsoleNumbers.length }} Bolas
+                </v-chip>
+              </div>
+
+              <!-- Empty History State -->
+              <div v-if="adminStore.drawnConsoleNumbers.length === 0" class="d-flex flex-column align-center justify-center py-6 text-center flex-grow-1">
+                <v-icon icon="mdi-numeric-0-circle-outline" size="36" color="slate-700" class="mb-2"></v-icon>
+                <span class="text-subtitle-2 text-slate-500 font-weight-bold">Nenhum número sorteado</span>
+                <span class="text-caption text-slate-600 text-xs">Dê duplo-clique em qualquer bola para iniciar o round.</span>
+              </div>
+
+              <!-- History Scroll Area -->
+              <div v-else class="history-scroll-area flex-grow-1 pr-1 overflow-y-auto" style="max-height: 250px;">
+                <div
+                  v-for="(ball, idx) in chronologicalDraws"
+                  :key="ball"
+                  class="history-item-row"
+                >
+                  <div class="d-flex align-center gap-3">
+                    <span class="history-badge-seq">{{ adminStore.drawnConsoleNumbers.length - idx }}º</span>
+                    <span class="history-badge-ball">{{ getLetterForBall(ball) }}-{{ ball }}</span>
+                  </div>
+                  <span class="history-item-time">Sorteado</span>
+                </div>
+              </div>
+            </v-card>
+          </v-col>
+        </v-row>
       </v-col>
 
       <!-- RIGHT COLUMN: Console Operations & History (Cols: 4 on desktop, 12 on mobile) -->
@@ -587,99 +688,6 @@
           </v-btn>
         </v-card>
 
-        <!-- Fila de Reivindicações (Claims Queue) -->
-        <v-card class="bg-slate-900 border-slate-800 rounded-xl pa-6 shadow-2xl d-flex flex-column mb-6">
-          <div class="d-flex justify-between align-center mb-4">
-            <h2 class="text-h6 font-weight-bold text-white d-flex align-center mb-0">
-              <v-icon icon="mdi-trophy-outline" class="mr-2" color="amber-darken-1"></v-icon>
-              Reivindicações de Bingo
-            </h2>
-            <v-chip color="amber-darken-2" size="small" class="text-slate-950 font-weight-bold">
-              {{ adminStore.claims.filter(c => c.status === 'PENDING').length }} Pendentes
-            </v-chip>
-          </div>
-
-          <!-- Empty Claims State -->
-          <div v-if="adminStore.claims.length === 0" class="d-flex flex-column align-center justify-center py-6 text-center">
-            <v-icon icon="mdi-help-circle-outline" size="36" color="slate-700" class="mb-2"></v-icon>
-            <span class="text-subtitle-2 text-slate-500 font-weight-bold">Nenhuma reivindicação recebida</span>
-          </div>
-
-          <!-- Claims Queue Scroll Area -->
-          <div v-else class="claims-list-area d-flex flex-column gap-2 overflow-y-auto" style="max-height: 250px;">
-            <div
-              v-for="claim in adminStore.claims"
-              :key="claim.claimId"
-              class="d-flex justify-between align-center bg-slate-950 border-slate-800 pa-3 rounded-lg"
-            >
-              <div>
-                <div class="text-caption text-slate-400 d-flex align-center gap-2">
-                  Cartela Serial
-                  <v-chip v-if="claim.automatic" color="amber-darken-4" size="x-small" class="font-weight-black px-1 py-0 height-auto text-white">
-                    Auto
-                  </v-chip>
-                </div>
-                <div class="text-subtitle-2 font-weight-black text-amber-lighten-2">
-                  {{ claim.serial }} (Card {{ claim.cardIndex + 1 }})
-                </div>
-              </div>
-              <div class="d-flex align-center gap-2">
-                <v-chip
-                  v-if="claim.status !== 'PENDING'"
-                  :color="claim.status === 'APPROVED' ? 'success' : 'error'"
-                  size="small"
-                  class="font-weight-black"
-                >
-                  {{ claim.status }}
-                </v-chip>
-                <v-btn
-                  v-if="claim.status === 'PENDING'"
-                  color="indigo-darken-3"
-                  size="small"
-                  class="font-weight-bold rounded-lg text-white"
-                  @click="openAuditModal(claim)"
-                >
-                  Auditar
-                </v-btn>
-              </div>
-            </div>
-          </div>
-        </v-card>
-
-        <!-- Chronological Drawings History -->
-        <v-card class="bg-slate-900 border-slate-800 rounded-xl pa-6 shadow-2xl flex-grow-1 d-flex flex-column h-console-history">
-          <div class="d-flex justify-between align-center mb-4">
-            <h2 class="text-h6 font-weight-bold text-white d-flex align-center mb-0">
-              <v-icon icon="mdi-history" class="mr-2" color="indigo-lighten-2"></v-icon>
-              Histórico do Round
-            </h2>
-            <v-chip color="slate-700" size="small" class="text-slate-300 font-weight-bold">
-              {{ adminStore.drawnConsoleNumbers.length }} Bolas
-            </v-chip>
-          </div>
-
-          <!-- Empty History State -->
-          <div v-if="adminStore.drawnConsoleNumbers.length === 0" class="flex-grow-1 d-flex flex-column align-center justify-center py-8 text-center">
-            <v-icon icon="mdi-numeric-0-circle-outline" size="48" color="slate-700" class="mb-2"></v-icon>
-            <span class="text-subtitle-2 text-slate-500 font-weight-bold">Nenhum número sorteado</span>
-            <span class="text-caption text-slate-600">Dê duplo-clique em qualquer bola para iniciar o round.</span>
-          </div>
-
-          <!-- History Scroll Area -->
-          <div v-else class="history-scroll-area flex-grow-1 pr-2">
-            <div
-              v-for="(ball, idx) in chronologicalDraws"
-              :key="ball"
-              class="history-item-row"
-            >
-              <div class="d-flex align-center gap-3">
-                <span class="history-badge-seq">{{ adminStore.drawnConsoleNumbers.length - idx }}º</span>
-                <span class="history-badge-ball">{{ getLetterForBall(ball) }}-{{ ball }}</span>
-              </div>
-              <span class="history-item-time">Sorteado</span>
-            </div>
-          </div>
-        </v-card>
       </v-col>
     </v-row>
 
@@ -847,12 +855,12 @@
           <v-select
             v-model="roundForm.prizes[0].drawPattern"
             :items="[
-              { title: 'Cartela Cheia', value: 'FULL_CARD' },
-              { title: 'Linha Horizontal', value: 'HORIZONTAL_LINE' },
-              { title: 'Linha Vertical', value: 'VERTICAL_LINE' },
+              { title: 'Cartela Cheia', value: 'FULL_GRID' },
+              { title: 'Qualquer Linha', value: 'ANY_LINE' },
+              { title: 'Qualquer Coluna', value: 'ANY_COLUMN' },
               { title: 'Diagonal', value: 'DIAGONAL' },
-              { title: 'Janelão', value: 'BIG_WINDOW' },
-              { title: 'Janelinha', value: 'SMALL_WINDOW' }
+              { title: 'Janelão (Borda Externa)', value: 'OUTER_BORDER' },
+              { title: 'Janelinha (Borda Interna)', value: 'INNER_BORDER' }
             ]"
             label="Padrão de Vitória"
             variant="outlined"
@@ -901,7 +909,7 @@ const editingRound = ref<any>(null)
 const roundForm = ref({
   roundNumber: 1,
   prizes: [
-    { name: 'Cartela Cheia', type: 'PHYSICAL', drawPattern: 'FULL_CARD' }
+    { name: 'Cartela Cheia', type: 'FULL_CARD', drawPattern: 'FULL_GRID' }
   ]
 })
 const isRoundSubmitting = ref(false)
@@ -911,14 +919,14 @@ const openRoundModal = (round?: any) => {
     editingRound.value = round
     roundForm.value = {
       roundNumber: round.roundNumber,
-      prizes: round.prizes && round.prizes.length > 0 ? [...round.prizes] : [{ name: 'Cartela Cheia', type: 'PHYSICAL', drawPattern: 'FULL_CARD' }]
+      prizes: round.prizes && round.prizes.length > 0 ? JSON.parse(JSON.stringify(round.prizes)) : [{ name: 'Cartela Cheia', type: 'FULL_CARD', drawPattern: 'FULL_GRID' }]
     }
   } else {
     editingRound.value = null
     const nextRound = adminStore.activeConsoleEvent?.rounds?.length ? adminStore.activeConsoleEvent.rounds.length + 1 : 1
     roundForm.value = {
       roundNumber: nextRound,
-      prizes: [{ name: 'Cartela Cheia', type: 'PHYSICAL', drawPattern: 'FULL_CARD' }]
+      prizes: [{ name: 'Cartela Cheia', type: 'FULL_CARD', drawPattern: 'FULL_GRID' }]
     }
   }
   isRoundModalOpen.value = true
@@ -933,6 +941,23 @@ const submitRound = async () => {
   if (!adminStore.activeConsoleEvent) return
   isRoundSubmitting.value = true
   try {
+    if (roundForm.value.prizes && roundForm.value.prizes.length > 0) {
+      const prize = roundForm.value.prizes[0]
+      if (prize.drawPattern === 'ANY_LINE') {
+        prize.type = 'LINE'
+      } else if (prize.drawPattern === 'ANY_COLUMN') {
+        prize.type = 'COLUMN'
+      } else if (prize.drawPattern === 'DIAGONAL') {
+        prize.type = 'DIAGONAL'
+      } else if (prize.drawPattern === 'OUTER_BORDER') {
+        prize.type = 'OUTER_BORDER'
+      } else if (prize.drawPattern === 'INNER_BORDER') {
+        prize.type = 'INNER_BORDER'
+      } else if (prize.drawPattern === 'FULL_GRID' || prize.drawPattern === 'FULL_CARD') {
+        prize.type = 'FULL_CARD'
+      }
+    }
+
     if (editingRound.value) {
       await adminStore.updateRound(adminStore.activeConsoleEvent.id, editingRound.value.id, roundForm.value)
     } else {
@@ -1042,6 +1067,18 @@ const handleDownloadPdf = async () => {
 // Computed properties
 const eventTitle = computed(() => adminStore.activeConsoleEvent?.title || 'Carregando…')
 const isConnected = computed(() => !!adminStore._wsAdminClient?.connected)
+
+const orderedBalls = computed(() => {
+  const list = []
+  for (let r = 0; r < 5; r++) {
+    for (let L = 0; L < 5; L++) {
+      for (let c = 0; c < 3; c++) {
+        list.push((L * 15 + 1) + r + (c * 5))
+      }
+    }
+  }
+  return list
+})
 
 const chronologicalDraws = computed(() => {
   // Return drawnConsoleNumbers in reverse chronological order

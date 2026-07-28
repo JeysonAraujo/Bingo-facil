@@ -266,7 +266,7 @@ public class EventService {
         }
         
         String contentType = file.getContentType();
-        if (contentType == null || (!contentType.equals("image/jpeg") && !contentType.equals("image/png") && !contentType.equals("image/webp"))) {
+        if (contentType == null || (!contentType.equals("image/jpeg") && !contentType.equals("image/jpg") && !contentType.equals("image/png") && !contentType.equals("image/webp"))) {
             throw new IllegalArgumentException("Mapeamento de arquivo inválido. Apenas imagens JPEG, PNG ou WebP são aceitas.");
         }
 
@@ -281,15 +281,21 @@ public class EventService {
         }
 
         try {
-            java.io.File uploadDir = new java.io.File("uploads/headers");
-            if (!uploadDir.exists()) {
-                uploadDir.mkdirs();
+            java.io.File baseDir = new java.io.File("bingo-backend").exists() 
+                ? new java.io.File("bingo-backend/uploads/headers") 
+                : new java.io.File("uploads/headers");
+                
+            if (!baseDir.exists()) {
+                baseDir.mkdirs();
             }
             
             // Excluir cabeçalho antigo físico se existir
             if (event.getHeaderImageUrl() != null) {
                 try {
                     java.io.File oldFile = new java.io.File(event.getHeaderImageUrl());
+                    if (!oldFile.exists() && new java.io.File("bingo-backend").exists()) {
+                        oldFile = new java.io.File("bingo-backend", event.getHeaderImageUrl());
+                    }
                     if (oldFile.exists()) {
                         oldFile.delete();
                     }
@@ -303,14 +309,16 @@ public class EventService {
                 originalName = "header";
             }
             String filename = eventId.toString() + "_" + System.currentTimeMillis() + "_" + originalName.replaceAll("[^a-zA-Z0-9.-]", "_");
-            java.io.File destFile = new java.io.File(uploadDir, filename);
-            file.transferTo(destFile);
+            java.io.File destFile = new java.io.File(baseDir, filename);
+            
+            java.nio.file.Files.copy(file.getInputStream(), destFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             
             String relativePath = "uploads/headers/" + filename;
             event.setHeaderImageUrl(relativePath);
             Event saved = eventRepository.save(event);
             return mapToResponseDto(saved);
         } catch (Exception e) {
+            e.printStackTrace();
             throw new RuntimeException("Failed to save header image", e);
         }
     }
