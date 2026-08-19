@@ -56,6 +56,9 @@ public class EventService {
             for (CreateRoundRequest roundReq : request.getRounds()) {
                 Round round = new Round();
                 round.setRoundNumber(roundReq.getRoundNumber());
+                if (roundReq.getTieBreakerRule() != null) {
+                    round.setTieBreakerRule(roundReq.getTieBreakerRule());
+                }
 
                 if (roundReq.getPrizes() != null) {
                     for (CreatePrizeRequest prizeReq : roundReq.getPrizes()) {
@@ -63,6 +66,9 @@ public class EventService {
                         prize.setName(prizeReq.getName());
                         prize.setType(PrizeType.valueOf(prizeReq.getType()));
                         prize.setDrawPattern(prizeReq.getDrawPattern());
+                        if (prizeReq.getDivisible() != null) {
+                            prize.setDivisible(prizeReq.getDivisible());
+                        }
                         round.addPrize(prize);
                     }
                 }
@@ -101,9 +107,9 @@ public class EventService {
     private EventResponseDto mapToResponseDto(Event event) {
         List<RoundResponseDto> roundDtos = event.getRounds().stream().map(round -> {
             List<PrizeResponseDto> prizeDtos = round.getPrizes().stream()
-                    .map(prize -> new PrizeResponseDto(prize.getId(), prize.getName(), prize.getType(), prize.getDrawPattern()))
+                    .map(prize -> new PrizeResponseDto(prize.getId(), prize.getName(), prize.getType(), prize.getDrawPattern(), prize.isDivisible()))
                     .collect(Collectors.toList());
-            return new RoundResponseDto(round.getId(), round.getRoundNumber(), round.getStatus(), prizeDtos);
+            return new RoundResponseDto(round.getId(), round.getRoundNumber(), round.getStatus(), prizeDtos, round.getTieBreakerRule());
         }).collect(Collectors.toList());
 
         return new EventResponseDto(
@@ -149,12 +155,18 @@ public class EventService {
         
         Round round = new Round();
         round.setRoundNumber(request.getRoundNumber());
+        if (request.getTieBreakerRule() != null) {
+            round.setTieBreakerRule(request.getTieBreakerRule());
+        }
         if (request.getPrizes() != null) {
             for (CreatePrizeRequest prizeReq : request.getPrizes()) {
                 Prize prize = new Prize();
                 prize.setName(prizeReq.getName());
                 prize.setType(PrizeType.valueOf(prizeReq.getType()));
                 prize.setDrawPattern(prizeReq.getDrawPattern());
+                if (prizeReq.getDivisible() != null) {
+                    prize.setDivisible(prizeReq.getDivisible());
+                }
                 round.addPrize(prize);
             }
         }
@@ -179,6 +191,9 @@ public class EventService {
                 .orElseThrow(() -> new IllegalArgumentException("Round not found with ID: " + roundId));
 
         targetRound.setRoundNumber(request.getRoundNumber());
+        if (request.getTieBreakerRule() != null) {
+            targetRound.setTieBreakerRule(request.getTieBreakerRule());
+        }
         
         targetRound.getPrizes().clear();
         if (request.getPrizes() != null) {
@@ -187,6 +202,9 @@ public class EventService {
                 prize.setName(prizeReq.getName());
                 prize.setType(PrizeType.valueOf(prizeReq.getType()));
                 prize.setDrawPattern(prizeReq.getDrawPattern());
+                if (prizeReq.getDivisible() != null) {
+                    prize.setDivisible(prizeReq.getDivisible());
+                }
                 targetRound.addPrize(prize);
             }
         }

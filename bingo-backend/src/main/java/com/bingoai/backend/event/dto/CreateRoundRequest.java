@@ -12,6 +12,8 @@ public class CreateRoundRequest {
     @NotEmpty(message = "Round must contain at least one prize")
     private List<CreatePrizeRequest> prizes;
 
+    private String tieBreakerRule;
+
     public CreateRoundRequest() {
     }
 
@@ -29,5 +31,13 @@ public class CreateRoundRequest {
 
     public void setPrizes(List<CreatePrizeRequest> prizes) {
         this.prizes = prizes;
+    }
+
+    public String getTieBreakerRule() {
+        return tieBreakerRule;
+    }
+
+    public void setTieBreakerRule(String tieBreakerRule) {
+        this.tieBreakerRule = tieBreakerRule;
     }
 }

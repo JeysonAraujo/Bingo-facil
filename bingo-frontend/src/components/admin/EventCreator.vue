@@ -143,9 +143,22 @@
                     ></v-btn>
                   </div>
                 </v-expansion-panel-title>
-
-                <!-- Round Content -->
                 <v-expansion-panel-text class="py-4">
+                  <!-- Tie Breaker Rule Selection -->
+                  <div class="mb-4">
+                    <v-select
+                      v-model="round.tieBreakerRule"
+                      label="Regra de Desempate"
+                      :items="getAvailableRules(round)"
+                      item-title="title"
+                      item-value="value"
+                      variant="outlined"
+                      density="compact"
+                      hide-details="auto"
+                      @update:model-value="onPrizeDivisibleChange(rIndex)"
+                    ></v-select>
+                  </div>
+
                   <div class="d-flex justify-between align-center mb-4">
                     <h3 class="text-subtitle-2 font-weight-bold text-grey-darken-2 mb-0">
                       Prêmios da Rodada
@@ -170,7 +183,7 @@
 
                   <!-- Dynamic Prizes in Round -->
                   <v-row v-for="(prize, pIndex) in round.prizes" :key="pIndex" class="align-center border-bottom-grey py-2 px-1">
-                    <v-col cols="12" sm="6" class="py-1">
+                    <v-col cols="12" sm="4" class="py-1">
                       <v-text-field
                         v-model="prize.name"
                         label="Nome do Prêmio"
@@ -182,7 +195,7 @@
                         hide-details="auto"
                       ></v-text-field>
                     </v-col>
-                    <v-col cols="10" sm="5" class="py-1">
+                    <v-col cols="6" sm="4" class="py-1">
                       <v-select
                         v-model="prize.type"
                         label="Tipo de Marcação"
@@ -194,6 +207,16 @@
                         hide-details="auto"
                         @update:model-value="onPrizeTypeChange(rIndex, pIndex)"
                       ></v-select>
+                    </v-col>
+                    <v-col cols="4" sm="3" class="py-1">
+                      <v-checkbox
+                        v-model="prize.divisible"
+                        label="Divisível"
+                        hide-details
+                        color="primary"
+                        density="compact"
+                        @update:model-value="onPrizeDivisibleChange(rIndex)"
+                      ></v-checkbox>
                     </v-col>
                     <v-col cols="2" sm="1" class="text-center py-1">
                       <v-btn
@@ -283,10 +306,12 @@ interface LocalPrize {
   name: string
   type: string
   drawPattern: string
+  divisible: boolean
 }
 
 interface LocalRound {
   roundNumber: number
+  tieBreakerRule: string
   prizes: LocalPrize[]
 }
 
@@ -297,10 +322,35 @@ onMounted(() => {
   addRound()
 })
 
+const getAvailableRules = (round: LocalRound) => {
+  const hasIndivisible = round.prizes.some(p => !p.divisible)
+  if (hasIndivisible) {
+    return [
+      { title: 'Dividir Prêmio (Desabilitado - Prêmio Indivisível)', value: 'SPLIT_PRIZE', props: { disabled: true } },
+      { title: 'Sorteio via Roleta Interativa', value: 'ROULETTE_DRAW' },
+      { title: 'Desempate por Critério Técnico (Maior Soma)', value: 'METRIC_DRAW' }
+    ]
+  }
+  return [
+    { title: 'Dividir Prêmio', value: 'SPLIT_PRIZE' },
+    { title: 'Sorteio via Roleta Interativa', value: 'ROULETTE_DRAW' },
+    { title: 'Desempate por Critério Técnico (Maior Soma)', value: 'METRIC_DRAW' }
+  ]
+}
+
+const onPrizeDivisibleChange = (rIndex: number) => {
+  const round = rounds[rIndex]
+  const hasIndivisible = round.prizes.some(p => !p.divisible)
+  if (hasIndivisible && round.tieBreakerRule === 'SPLIT_PRIZE') {
+    round.tieBreakerRule = 'ROULETTE_DRAW'
+  }
+}
+
 const addRound = () => {
   const roundNumber = rounds.length + 1
   rounds.push({
     roundNumber,
+    tieBreakerRule: 'SPLIT_PRIZE',
     prizes: []
   })
   // Expand the newly added round
@@ -319,12 +369,14 @@ const addPrize = (rIndex: number) => {
   rounds[rIndex].prizes.push({
     name: '',
     type: 'LINE',
-    drawPattern: 'ANY_LINE'
+    drawPattern: 'ANY_LINE',
+    divisible: true
   })
 }
 
 const removePrize = (rIndex: number, pIndex: number) => {
   rounds[rIndex].prizes.splice(pIndex, 1)
+  onPrizeDivisibleChange(rIndex)
 }
 
 const onPrizeTypeChange = (rIndex: number, pIndex: number) => {
@@ -359,10 +411,12 @@ const submitForm = async () => {
     youtubeUrl: youtubeUrl.value || undefined,
     rounds: rounds.map(r => ({
       roundNumber: r.roundNumber,
+      tieBreakerRule: r.tieBreakerRule,
       prizes: r.prizes.map(p => ({
         name: p.name,
         type: p.type,
-        drawPattern: p.drawPattern
+        drawPattern: p.drawPattern,
+        divisible: p.divisible
       }))
     }))
   }

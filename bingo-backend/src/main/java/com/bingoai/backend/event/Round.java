@@ -24,6 +24,9 @@ public class Round {
     @Column(nullable = false)
     private RoundStatus status = RoundStatus.PENDING;
 
+    @Column(name = "tie_breaker_rule", nullable = false)
+    private String tieBreakerRule = "SPLIT_PRIZE";
+
     @OneToMany(mappedBy = "round", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Prize> prizes = new ArrayList<>();
 
@@ -80,5 +83,13 @@ public class Round {
 
     public void setPrizes(List<Prize> prizes) {
         this.prizes = prizes;
+    }
+
+    public String getTieBreakerRule() {
+        return tieBreakerRule;
+    }
+
+    public void setTieBreakerRule(String tieBreakerRule) {
+        this.tieBreakerRule = tieBreakerRule;
     }
 }

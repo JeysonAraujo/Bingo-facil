@@ -44,6 +44,9 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/events/{id}").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/events/{id}/draws").permitAll()
 
+                // Test endpoints
+                .requestMatchers("/api/test-scenario/**").permitAll()
+
                 // SuperAdmin-only routes
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/auth/signup").hasRole("SUPER_ADMIN")
                 .requestMatchers("/api/v1/admin/management/**").hasRole("SUPER_ADMIN")

@@ -8,15 +8,21 @@ public class RoundResponseDto {
     private Integer roundNumber;
     private com.bingoai.backend.event.RoundStatus status;
     private List<PrizeResponseDto> prizes;
+    private String tieBreakerRule;
 
     public RoundResponseDto() {
     }
 
     public RoundResponseDto(UUID id, Integer roundNumber, com.bingoai.backend.event.RoundStatus status, List<PrizeResponseDto> prizes) {
+        this(id, roundNumber, status, prizes, "SPLIT_PRIZE");
+    }
+
+    public RoundResponseDto(UUID id, Integer roundNumber, com.bingoai.backend.event.RoundStatus status, List<PrizeResponseDto> prizes, String tieBreakerRule) {
         this.id = id;
         this.roundNumber = roundNumber;
         this.status = status;
         this.prizes = prizes;
+        this.tieBreakerRule = tieBreakerRule;
     }
 
     public UUID getId() {
@@ -49,5 +55,13 @@ public class RoundResponseDto {
 
     public void setPrizes(List<PrizeResponseDto> prizes) {
         this.prizes = prizes;
+    }
+
+    public String getTieBreakerRule() {
+        return tieBreakerRule;
+    }
+
+    public void setTieBreakerRule(String tieBreakerRule) {
+        this.tieBreakerRule = tieBreakerRule;
     }
 }

@@ -13,6 +13,8 @@ public class CreatePrizeRequest {
     @NotBlank(message = "Prize draw pattern cannot be blank")
     private String drawPattern;
 
+    private Boolean divisible;
+
     public CreatePrizeRequest() {
     }
 
@@ -38,5 +40,13 @@ public class CreatePrizeRequest {
 
     public void setDrawPattern(String drawPattern) {
         this.drawPattern = drawPattern;
+    }
+
+    public Boolean getDivisible() {
+        return divisible;
+    }
+
+    public void setDivisible(Boolean divisible) {
+        this.divisible = divisible;
     }
 }

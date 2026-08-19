@@ -364,6 +364,16 @@
 
               <!-- Claims Queue Scroll Area -->
               <div v-else class="claims-list-area d-flex flex-column gap-2 overflow-y-auto pr-1 flex-grow-1" style="max-height: 250px;">
+                <v-alert
+                  v-if="pendingClaimsCount > 1"
+                  type="warning"
+                  variant="tonal"
+                  class="mb-3 rounded-lg border-yellow text-white"
+                  density="compact"
+                >
+                  <strong>Empate Detectado!</strong> {{ pendingClaimsCount }} cartelas reivindicaram a vitória simultaneamente. A regra ativa é: <strong>{{ activeRoundTieBreakerRuleLabel }}</strong>. Ao aprovar uma delas, a regra será aplicada.
+                </v-alert>
+
                 <div
                   v-for="claim in adminStore.claims"
                   :key="claim.claimId"
@@ -801,6 +811,25 @@
           </v-col>
         </v-row>
 
+        <!-- Tie Breaker Info Notice in Audit Modal -->
+        <v-alert
+          v-if="pendingClaimsCount > 1"
+          type="info"
+          variant="tonal"
+          class="mt-4 rounded-lg text-white text-left"
+          density="compact"
+        >
+          <div v-if="activeRoundTieBreakerRule === 'SPLIT_PRIZE'">
+            <strong>Aviso de Empate:</strong> A regra é <strong>Dividir Prêmio</strong>. Ao aprovar este vencedor, as demais cartelas empatadas também serão aprovadas automaticamente.
+          </div>
+          <div v-else-if="activeRoundTieBreakerRule === 'METRIC_DRAW'">
+            <strong>Aviso de Empate:</strong> A regra é <strong>Critério Técnico (Maior Soma)</strong>. Ao aprovar, o sistema comparará a soma de todas as cartelas e aprovará automaticamente a de maior valor, rejeitando as outras.
+          </div>
+          <div v-else-if="activeRoundTieBreakerRule === 'ROULETTE_DRAW'">
+            <strong>Aviso de Empate:</strong> A regra é <strong>Roleta de Sorteio</strong>. Ao aprovar, o sistema executará um sorteio aleatório entre as cartelas empatadas e iniciará a roleta para os jogadores.
+          </div>
+        </v-alert>
+
         <!-- Actions -->
         <div class="d-flex justify-end gap-3 border-t-slate pt-6 mt-6">
           <v-btn
@@ -875,8 +904,29 @@
             density="compact"
             bg-color="slate-950"
             color="amber-darken-1"
-            class="rounded-lg text-white"
+            class="rounded-lg text-white mb-4"
           ></v-select>
+
+          <v-select
+            v-model="roundForm.tieBreakerRule"
+            :items="getAvailableRules()"
+            label="Regra de Desempate"
+            variant="outlined"
+            density="compact"
+            bg-color="slate-950"
+            color="amber-darken-1"
+            class="rounded-lg text-white mb-4"
+          ></v-select>
+
+          <v-checkbox
+            v-model="roundForm.prizes[0].divisible"
+            label="Prêmio Divisível"
+            hide-details
+            color="amber-darken-1"
+            density="compact"
+            class="mb-4"
+            @update:model-value="onPrizeDivisibleChange"
+          ></v-checkbox>
         </v-card-text>
         <v-card-actions class="justify-end gap-2 px-6 pb-6">
           <v-btn
@@ -915,10 +965,12 @@ interface PrizeForm {
   name: string
   type: string
   drawPattern?: string
+  divisible?: boolean
 }
 
 interface RoundForm {
   roundNumber: number
+  tieBreakerRule?: string
   prizes: PrizeForm[]
 }
 
@@ -927,8 +979,9 @@ const isRoundModalOpen = ref(false)
 const editingRound = ref<any>(null)
 const roundForm = ref<RoundForm>({
   roundNumber: 1,
+  tieBreakerRule: 'SPLIT_PRIZE',
   prizes: [
-    { name: 'Cartela Cheia', type: 'FULL_CARD', drawPattern: 'FULL_GRID' }
+    { name: 'Cartela Cheia', type: 'FULL_CARD', drawPattern: 'FULL_GRID', divisible: true }
   ]
 })
 const isRoundSubmitting = ref(false)
@@ -938,14 +991,18 @@ const openRoundModal = (round?: any) => {
     editingRound.value = round
     roundForm.value = {
       roundNumber: round.roundNumber,
-      prizes: round.prizes && round.prizes.length > 0 ? JSON.parse(JSON.stringify(round.prizes)) : [{ name: ' ', type: 'FULL_CARD', drawPattern: 'FULL_GRID' }]
+      tieBreakerRule: round.tieBreakerRule || 'SPLIT_PRIZE',
+      prizes: round.prizes && round.prizes.length > 0 
+        ? JSON.parse(JSON.stringify(round.prizes)) 
+        : [{ name: ' ', type: 'FULL_CARD', drawPattern: 'FULL_GRID', divisible: true }]
     }
   } else {
     editingRound.value = null
     const nextRound = adminStore.activeConsoleEvent?.rounds?.length ? adminStore.activeConsoleEvent.rounds.length + 1 : 1
     roundForm.value = {
       roundNumber: nextRound,
-      prizes: [{ name: ' ', type: 'FULL_CARD', drawPattern: 'FULL_GRID' }]
+      tieBreakerRule: 'SPLIT_PRIZE',
+      prizes: [{ name: ' ', type: 'FULL_CARD', drawPattern: 'FULL_GRID', divisible: true }]
     }
   }
   isRoundModalOpen.value = true
@@ -1093,6 +1150,54 @@ const isConnected = computed(() => !!adminStore._wsAdminClient?.connected)
 const isRoundInProgress = computed(() => {
   return adminStore.activeConsoleEvent?.rounds?.some(r => r.status === 'IN_PROGRESS') || false
 })
+
+const pendingClaimsCount = computed(() => {
+  return adminStore.claims.filter(c => c.status === 'PENDING').length
+})
+
+const activeRound = computed(() => {
+  const event = adminStore.activeConsoleEvent
+  if (!event || !event.rounds) return null
+  return event.rounds.find((r: any) => r.status === 'IN_PROGRESS') || event.rounds[0]
+})
+
+const activeRoundTieBreakerRule = computed(() => {
+  return activeRound.value?.tieBreakerRule || 'SPLIT_PRIZE'
+})
+
+const activeRoundTieBreakerRuleLabel = computed(() => {
+  switch (activeRoundTieBreakerRule.value) {
+    case 'SPLIT_PRIZE': return 'Dividir Prêmio'
+    case 'ROULETTE_DRAW': return 'Roleta Interativa'
+    case 'METRIC_DRAW': return 'Critério Técnico (Maior Soma)'
+    default: return 'Dividir Prêmio'
+  }
+})
+
+const getAvailableRules = () => {
+  const prize = roundForm.value.prizes[0]
+  const isDivisible = prize ? prize.divisible !== false : true
+  if (!isDivisible) {
+    return [
+      { title: 'Dividir Prêmio (Desabilitado - Prêmio Indivisível)', value: 'SPLIT_PRIZE', props: { disabled: true } },
+      { title: 'Sorteio via Roleta Interativa', value: 'ROULETTE_DRAW' },
+      { title: 'Desempate por Critério Técnico (Maior Soma)', value: 'METRIC_DRAW' }
+    ]
+  }
+  return [
+    { title: 'Dividir Prêmio', value: 'SPLIT_PRIZE' },
+    { title: 'Sorteio via Roleta Interativa', value: 'ROULETTE_DRAW' },
+    { title: 'Desempate por Critério Técnico (Maior Soma)', value: 'METRIC_DRAW' }
+  ]
+}
+
+const onPrizeDivisibleChange = () => {
+  const prize = roundForm.value.prizes[0]
+  const isDivisible = prize ? prize.divisible !== false : true
+  if (!isDivisible && roundForm.value.tieBreakerRule === 'SPLIT_PRIZE') {
+    roundForm.value.tieBreakerRule = 'ROULETTE_DRAW'
+  }
+}
 
 const orderedBalls = computed(() => {
   const list = []

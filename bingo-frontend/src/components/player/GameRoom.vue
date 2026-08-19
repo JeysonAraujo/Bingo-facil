@@ -276,7 +276,7 @@
                 <button
                   ref="claimBingoBtnRef"
                   class="claim-bingo-btn"
-                  :disabled="!isBingoButtonUnlocked || claimCooldown || gameStore.isSubmittingClaim"
+                  :disabled="!isBingoButtonUnlocked || claimCooldown || gameStore.isSubmittingClaim || gameStore.hasClaimedThisRound"
                   @click="triggerClaimBingo"
                   aria-label="Gritar Bingo!"
                 >
@@ -323,6 +323,17 @@
             <span class="serial-box-label">Sua Chave de Serial</span>
             <span class="serial-box-code">{{ gameStore.serial }}</span>
           </div>
+
+          <v-alert
+            v-if="gameStore.claimsList && gameStore.claimsList.length > 1"
+            type="warning"
+            variant="tonal"
+            class="mt-4 rounded-lg border-yellow text-white text-left"
+            density="compact"
+          >
+            <strong>Empate Detectado!</strong> Outro(s) jogador(es) também reivindicaram vitória nesta rodada. Aguardando o desempate pelo administrador.
+          </v-alert>
+
           <p class="mt-4 text-grey-lighten-1">
             Fique atento à transmissão ao vivo. O apresentador irá validar sua cartela em tempo real!
           </p>
@@ -383,6 +394,56 @@
           >
             Continuar Jogando
           </v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
+
+    <!-- Tie Breaker Roulette Modal -->
+    <v-dialog v-model="gameStore.showRoulette" persistent max-width="600px">
+      <v-card class="bg-slate-950 text-white rounded-xl border-slate-800 pa-6 text-center" style="background-color: #0b1329 !important; border: 2px solid rgba(255, 214, 0, 0.2) !important;">
+        <h2 class="text-h4 font-weight-black text-amber-accent-3 mb-2">
+          🎯 Empate! Sorteio Iniciado
+        </h2>
+        <p class="text-subtitle-1 text-slate-300 mb-6">
+          Múltiplas cartelas empataram. A roleta decidirá o vencedor!
+        </p>
+
+        <!-- Conveyor Belt Container -->
+        <div class="roulette-container mb-6">
+          <div class="roulette-pointer"></div>
+          <div 
+            class="roulette-strip" 
+            :style="stripStyle"
+          >
+            <div 
+              v-for="(p, index) in rouletteItems" 
+              :key="index" 
+              class="roulette-card"
+              :class="{ 'is-winner-card': index === winningItemIndex && isSpinningFinished }"
+            >
+              <div class="text-caption text-slate-400">Cartela</div>
+              <div class="text-h6 font-weight-bold text-amber-lighten-2">{{ p.serial }}</div>
+              <div class="text-body-2 text-slate-200 text-truncate" style="max-width: 110px;">{{ p.name }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="isSpinningFinished" class="animate-fade-in">
+          <p class="text-h5 font-weight-black text-amber-accent-3 mb-4">
+            🎉 Vencedor: {{ gameStore.rouletteWinnerName }} ({{ gameStore.rouletteWinnerSerial }}) 🎉
+          </p>
+          <v-btn
+            color="amber-darken-2"
+            variant="flat"
+            size="large"
+            class="rounded-pill font-weight-bold"
+            @click="finishRoulette"
+          >
+            Ver Detalhes do Prêmio
+          </v-btn>
+        </div>
+        <div v-else class="text-slate-400">
+          Sorteando...
         </div>
       </v-card>
     </v-dialog>
@@ -510,6 +571,65 @@ import type { CardMatrixDto } from '../../services/api'
 const router = useRouter()
 const route = useRoute()
 const gameStore = useGameStore()
+
+// Tie Breaker Roulette Logic
+const isSpinningFinished = ref(false)
+const stripStyle = ref({
+  transform: 'translateX(0px)',
+  transition: 'none'
+})
+const rouletteItems = ref<any[]>([])
+const winningItemIndex = ref(-1)
+
+watch(() => gameStore.showRoulette, (newVal) => {
+  if (newVal) {
+    isSpinningFinished.value = false
+    stripStyle.value = {
+      transform: 'translateX(0px)',
+      transition: 'none'
+    }
+
+    const participants = gameStore.rouletteParticipants
+    const winnerSerial = gameStore.rouletteWinnerSerial
+    if (!participants || participants.length === 0 || !winnerSerial) return
+
+    const winnerIndex = participants.findIndex(p => p.serial === winnerSerial)
+    if (winnerIndex === -1) return
+
+    const repeats = 15
+    const items: any[] = []
+    for (let i = 0; i < repeats; i++) {
+      items.push(...participants)
+    }
+    rouletteItems.value = items
+
+    const stopRepetition = 12
+    winningItemIndex.value = stopRepetition * participants.length + winnerIndex
+
+    nextTick(() => {
+      setTimeout(() => {
+        const cardPitch = 140
+        const containerWidth = 552
+        const stopOffset = - (winningItemIndex.value * cardPitch + 70) + containerWidth / 2
+
+        stripStyle.value = {
+          transform: `translateX(${stopOffset}px)`,
+          transition: 'transform 4s cubic-bezier(0.1, 0.8, 0.1, 1)'
+        }
+
+        setTimeout(() => {
+          isSpinningFinished.value = true
+        }, 4000)
+      }, 100)
+    })
+  }
+})
+
+const finishRoulette = () => {
+  gameStore.showRoulette = false
+  gameStore.winnerSerial = gameStore.rouletteWinnerSerial
+  gameStore.showVictoryOverlay = true
+}
 
 // Activation Modal Logic
 const showActivationModal = ref(false)
@@ -1203,6 +1323,87 @@ watch(activeTab, (newTab) => {
 <style scoped>
 .game-app {
   background: #0b132b !important;
+}
+
+/* Tie Breaker Roulette Styles */
+.roulette-container {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  overflow: hidden;
+  background-color: #121c33;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+
+.roulette-pointer {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: #ffd600;
+  z-index: 10;
+  transform: translateX(-50%);
+  box-shadow: 0 0 10px #ffd600;
+}
+
+.roulette-pointer::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -8px;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid #ffd600;
+}
+
+.roulette-pointer::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: -8px;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 10px solid #ffd600;
+}
+
+.roulette-strip {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-left: 0;
+  will-change: transform;
+}
+
+.roulette-card {
+  flex: 0 0 130px;
+  width: 130px;
+  height: 90px;
+  margin: 0 5px;
+  background-color: #1a2a4a;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.is-winner-card {
+  background-color: rgba(255, 214, 0, 0.15) !important;
+  border: 2px solid #ffd600 !important;
+  transform: scale(1.05);
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .game-navbar {

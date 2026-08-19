@@ -66,7 +66,13 @@ export const useGameStore = defineStore('game', {
     isBingoFinished: false,
     winnersList: [] as Array<{ serial: string; name: string }>,
     playerName: sessionStorage.getItem('bingo_player_name') as string | null,
-    playerPhone: sessionStorage.getItem('bingo_player_phone') as string | null
+    playerPhone: sessionStorage.getItem('bingo_player_phone') as string | null,
+    showRoulette: false,
+    rouletteParticipants: [] as Array<{ serial: string; name: string }>,
+    rouletteWinnerSerial: null as string | null,
+    rouletteWinnerName: null as string | null,
+    hasClaimedThisRound: false,
+    claimsList: [] as any[]
   }),
 
   getters: {
@@ -180,6 +186,10 @@ export const useGameStore = defineStore('game', {
       this.winnerCardIndex = null
       this.showVictoryOverlay = false
       this.winnersList = []
+      this.showRoulette = false
+      this.rouletteParticipants = []
+      this.rouletteWinnerSerial = null
+      this.rouletteWinnerName = null
  
       this._wsClient = createWebSocketClient(
         eventId,
@@ -210,6 +220,18 @@ export const useGameStore = defineStore('game', {
             this.winnerSerial = this.winnersList.map((w: any) => `${w.name} (${w.serial})`).join(', ')
             this.winnerCardIndex = claimMsg.payload.cardIndex
             this.showVictoryOverlay = true
+          } else if (claimMsg.eventType === 'BINGO_CLAIM') {
+            if (!this.claimsList) {
+              this.claimsList = []
+            }
+            if (!this.claimsList.some((c: any) => c.claimId === claimMsg.payload.claimId)) {
+              this.claimsList.push(claimMsg.payload)
+            }
+          } else if (claimMsg.eventType === 'TIE_ROULETTE') {
+            this.rouletteParticipants = claimMsg.payload.participants
+            this.rouletteWinnerSerial = claimMsg.payload.winnerSerial
+            this.rouletteWinnerName = claimMsg.payload.winnerName
+            this.showRoulette = true
           }
         },
         onChatMessage,
@@ -223,6 +245,12 @@ export const useGameStore = defineStore('game', {
           if (roundMsg.status === 'IN_PROGRESS') {
             this.drawnNumbers = []
             this.winnersList = []
+            this.showRoulette = false
+            this.rouletteParticipants = []
+            this.rouletteWinnerSerial = null
+            this.rouletteWinnerName = null
+            this.hasClaimedThisRound = false
+            this.claimsList = []
           }
           if (onRoundStatusChange) {
             onRoundStatusChange(roundMsg)
@@ -262,8 +290,17 @@ export const useGameStore = defineStore('game', {
           sessionToken: this.sessionToken,
           cardIndex: cardIndex
         })
-        return response.data.success
+        if (response.data.success) {
+          this.hasClaimedThisRound = true
+          return true
+        }
+        return false
       } catch (err: any) {
+        if (err.response && err.response.status === 409) {
+          console.log('[Store] Claim BINGO already registered (409 Conflict). Treating as success.')
+          this.hasClaimedThisRound = true
+          return true
+        }
         console.error('[Store] Claim BINGO failed:', err)
         return false
       } finally {
@@ -348,6 +385,8 @@ export const useGameStore = defineStore('game', {
       }
       this._latencyTimeouts = {}
       this.setConnectionStatus('disconnected')
+      this.hasClaimedThisRound = false
+      this.claimsList = []
     },
 
     /**

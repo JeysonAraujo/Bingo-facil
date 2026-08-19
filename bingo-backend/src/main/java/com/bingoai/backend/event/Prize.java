@@ -25,6 +25,9 @@ public class Prize {
     @Column(name = "draw_pattern", nullable = false)
     private String drawPattern;
 
+    @Column(nullable = false)
+    private boolean divisible = true;
+
     public Prize() {
     }
 
@@ -67,5 +70,13 @@ public class Prize {
 
     public void setDrawPattern(String drawPattern) {
         this.drawPattern = drawPattern;
+    }
+
+    public boolean isDivisible() {
+        return divisible;
+    }
+
+    public void setDivisible(boolean divisible) {
+        this.divisible = divisible;
     }
 }

@@ -7,15 +7,21 @@ public class PrizeResponseDto {
     private String name;
     private com.bingoai.backend.event.PrizeType type;
     private String drawPattern;
+    private boolean divisible;
 
     public PrizeResponseDto() {
     }
 
     public PrizeResponseDto(UUID id, String name, com.bingoai.backend.event.PrizeType type, String drawPattern) {
+        this(id, name, type, drawPattern, true);
+    }
+
+    public PrizeResponseDto(UUID id, String name, com.bingoai.backend.event.PrizeType type, String drawPattern, boolean divisible) {
         this.id = id;
         this.name = name;
         this.type = type;
         this.drawPattern = drawPattern;
+        this.divisible = divisible;
     }
 
     public UUID getId() {
@@ -48,5 +54,13 @@ public class PrizeResponseDto {
 
     public void setDrawPattern(String drawPattern) {
         this.drawPattern = drawPattern;
+    }
+
+    public boolean isDivisible() {
+        return divisible;
+    }
+
+    public void setDivisible(boolean divisible) {
+        this.divisible = divisible;
     }
 }

@@ -72,7 +72,9 @@ public class ClaimController {
                 .collect(Collectors.toSet());
 
         // Add ticket overrides
-        marked.addAll(ticket.getMarkedOverrides());
+        if (ticket.getMarkedOverrides() != null) {
+            marked.addAll(ticket.getMarkedOverrides());
+        }
 
         // 4. Validate card index bounds
         List<CardMatrix> cards = ticket.getMatrix().getCards();
@@ -96,6 +98,12 @@ public class ClaimController {
 
         if (!isWinner) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The card does not satisfy any winning pattern for the active round.");
+        }
+
+        // 6.5. Prevent duplicate claims for the same ticket/round/cardIndex
+        boolean claimExists = claimRepository.existsByRoundIdAndTicketIdAndCardIndex(round.getId(), ticket.getId(), request.getCardIndex());
+        if (claimExists) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Você já enviou uma reivindicação para esta cartela nesta rodada.");
         }
 
         // 7. Persist claim
@@ -169,38 +177,185 @@ public class ClaimController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível aprovar claims de um evento finalizado.");
         }
 
-        claim.setStatus("APPROVED");
-        Claim saved = claimRepository.save(claim);
-        Round round = saved.getRound();
-        round.setStatus(com.bingoai.backend.event.RoundStatus.FINISHED);
-        
-        auditLogService.logAction(admin, "APPROVE_CLAIM", "Claim " + saved.getId() + " approved. Round " + round.getId() + " finished.");
-
-        ClaimResponseDto responseDto = new ClaimResponseDto(
-                saved.getId(),
-                saved.getTicket().getId(),
-                round.getId(),
-                saved.getCardIndex(),
-                saved.getStatus(),
-                saved.getCreatedAt().toString(),
-                saved.getTicket().getSerial()
-        );
+        Round round = claim.getRound();
+        List<Claim> allClaims = claimRepository.findByRoundId(round.getId());
+        List<Claim> pendingClaims = allClaims.stream()
+                .filter(c -> "PENDING".equals(c.getStatus()))
+                .collect(Collectors.toList());
 
         UUID eventId = round.getEvent().getId();
-        BingoClaimMessage wsMessage = new BingoClaimMessage(
-                saved.getTicket().getId().toString(),
-                null, // Remove sessionToken
-                saved.getCardIndex(),
-                saved.getId().toString(),
-                saved.getStatus(),
-                saved.getTicket().getSerial()
-        );
-        wsMessage.setEventType("BINGO_APPROVED");
-        wsMessage.getPayload().setPlayerName(saved.getTicket().getPlayerName());
-        messagingTemplate.convertAndSend("/topic/events/" + eventId + "/claims", wsMessage);
+
+        if (pendingClaims.size() > 1) {
+            String rule = round.getTieBreakerRule();
+            if ("SPLIT_PRIZE".equals(rule)) {
+                // Approve all pending claims
+                for (Claim c : pendingClaims) {
+                    c.setStatus("APPROVED");
+                    claimRepository.save(c);
+
+                    BingoClaimMessage wsMessage = new BingoClaimMessage(
+                            c.getTicket().getId().toString(),
+                            null,
+                            c.getCardIndex(),
+                            c.getId().toString(),
+                            c.getStatus(),
+                            c.getTicket().getSerial()
+                    );
+                    wsMessage.setEventType("BINGO_APPROVED");
+                    wsMessage.getPayload().setPlayerName(c.getTicket().getPlayerName());
+                    messagingTemplate.convertAndSend("/topic/events/" + eventId + "/claims", wsMessage);
+                }
+                round.setStatus(com.bingoai.backend.event.RoundStatus.FINISHED);
+                auditLogService.logAction(admin, "APPROVE_CLAIM_SPLIT", "Approved all " + pendingClaims.size() + " claims for round " + round.getId() + " under split prize rule.");
+            } else if ("METRIC_DRAW".equals(rule)) {
+                // Determine winner by max card sum
+                Claim winnerClaim = null;
+                int maxSum = -1;
+                for (Claim c : pendingClaims) {
+                    com.bingoai.backend.ticket.CardMatrix card = c.getTicket().getMatrix().getCards().get(c.getCardIndex());
+                    int sum = 0;
+                    if (card.getB() != null) sum += card.getB().stream().filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum();
+                    if (card.getI() != null) sum += card.getI().stream().filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum();
+                    if (card.getN() != null) sum += card.getN().stream().filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum();
+                    if (card.getG() != null) sum += card.getG().stream().filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum();
+                    if (card.getO() != null) sum += card.getO().stream().filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum();
+
+                    if (sum > maxSum) {
+                        maxSum = sum;
+                        winnerClaim = c;
+                    } else if (sum == maxSum && winnerClaim != null) {
+                        if (c.getTicket().getId().compareTo(winnerClaim.getTicket().getId()) < 0) {
+                            winnerClaim = c;
+                        }
+                    }
+                }
+
+                for (Claim c : pendingClaims) {
+                    if (c.equals(winnerClaim)) {
+                        c.setStatus("APPROVED");
+                        claimRepository.save(c);
+
+                        BingoClaimMessage wsMessage = new BingoClaimMessage(
+                                c.getTicket().getId().toString(),
+                                null,
+                                c.getCardIndex(),
+                                c.getId().toString(),
+                                c.getStatus(),
+                                c.getTicket().getSerial()
+                        );
+                        wsMessage.setEventType("BINGO_APPROVED");
+                        wsMessage.getPayload().setPlayerName(c.getTicket().getPlayerName());
+                        messagingTemplate.convertAndSend("/topic/events/" + eventId + "/claims", wsMessage);
+                    } else {
+                        c.setStatus("REJECTED");
+                        claimRepository.save(c);
+
+                        BingoClaimMessage wsMessage = new BingoClaimMessage(
+                                c.getTicket().getId().toString(),
+                                null,
+                                c.getCardIndex(),
+                                c.getId().toString(),
+                                c.getStatus(),
+                                c.getTicket().getSerial()
+                        );
+                        wsMessage.setEventType("BINGO_REJECTED");
+                        wsMessage.getPayload().setPlayerName(c.getTicket().getPlayerName());
+                        messagingTemplate.convertAndSend("/topic/events/" + eventId + "/claims", wsMessage);
+                    }
+                }
+                round.setStatus(com.bingoai.backend.event.RoundStatus.FINISHED);
+                auditLogService.logAction(admin, "APPROVE_CLAIM_METRIC", "Approved claim " + winnerClaim.getId() + " by metric draw (sum: " + maxSum + ").");
+            } else if ("ROULETTE_DRAW".equals(rule)) {
+                // Select random winner
+                int winningIndex = new java.util.Random().nextInt(pendingClaims.size());
+                Claim winnerClaim = pendingClaims.get(winningIndex);
+
+                List<com.bingoai.backend.game.dto.TieRouletteMessage.Participant> participants = pendingClaims.stream()
+                        .map(c -> new com.bingoai.backend.game.dto.TieRouletteMessage.Participant(
+                                c.getTicket().getSerial(),
+                                c.getTicket().getPlayerName() != null ? c.getTicket().getPlayerName() : "Jogador"
+                        ))
+                        .collect(Collectors.toList());
+
+                for (Claim c : pendingClaims) {
+                    if (c.equals(winnerClaim)) {
+                        c.setStatus("APPROVED");
+                        claimRepository.save(c);
+
+                        BingoClaimMessage wsMessage = new BingoClaimMessage(
+                                c.getTicket().getId().toString(),
+                                null,
+                                c.getCardIndex(),
+                                c.getId().toString(),
+                                c.getStatus(),
+                                c.getTicket().getSerial()
+                        );
+                        wsMessage.setEventType("BINGO_APPROVED");
+                        wsMessage.getPayload().setPlayerName(c.getTicket().getPlayerName());
+                        messagingTemplate.convertAndSend("/topic/events/" + eventId + "/claims", wsMessage);
+                    } else {
+                        c.setStatus("REJECTED");
+                        claimRepository.save(c);
+
+                        BingoClaimMessage wsMessage = new BingoClaimMessage(
+                                c.getTicket().getId().toString(),
+                                null,
+                                c.getCardIndex(),
+                                c.getId().toString(),
+                                c.getStatus(),
+                                c.getTicket().getSerial()
+                        );
+                        wsMessage.setEventType("BINGO_REJECTED");
+                        wsMessage.getPayload().setPlayerName(c.getTicket().getPlayerName());
+                        messagingTemplate.convertAndSend("/topic/events/" + eventId + "/claims", wsMessage);
+                    }
+                }
+
+                // Broadcast Tie Roulette spin animation command
+                com.bingoai.backend.game.dto.TieRouletteMessage rouletteMsg = new com.bingoai.backend.game.dto.TieRouletteMessage(
+                        participants,
+                        winnerClaim.getTicket().getSerial(),
+                        winnerClaim.getTicket().getPlayerName() != null ? winnerClaim.getTicket().getPlayerName() : "Jogador"
+                );
+                messagingTemplate.convertAndSend("/topic/events/" + eventId + "/claims", rouletteMsg);
+
+                round.setStatus(com.bingoai.backend.event.RoundStatus.FINISHED);
+                auditLogService.logAction(admin, "APPROVE_CLAIM_ROULETTE", "Approved claim " + winnerClaim.getId() + " by roulette draw.");
+            }
+        } else {
+            // Normal flow for single claim
+            claim.setStatus("APPROVED");
+            Claim saved = claimRepository.save(claim);
+            round.setStatus(com.bingoai.backend.event.RoundStatus.FINISHED);
+
+            auditLogService.logAction(admin, "APPROVE_CLAIM", "Claim " + saved.getId() + " approved. Round " + round.getId() + " finished.");
+
+            BingoClaimMessage wsMessage = new BingoClaimMessage(
+                    saved.getTicket().getId().toString(),
+                    null,
+                    saved.getCardIndex(),
+                    saved.getId().toString(),
+                    saved.getStatus(),
+                    saved.getTicket().getSerial()
+            );
+            wsMessage.setEventType("BINGO_APPROVED");
+            wsMessage.getPayload().setPlayerName(saved.getTicket().getPlayerName());
+            messagingTemplate.convertAndSend("/topic/events/" + eventId + "/claims", wsMessage);
+        }
 
         RoundStatusMessage statusMessage = new RoundStatusMessage(round.getId(), round.getRoundNumber() != null ? round.getRoundNumber() : 0, "FINISHED");
         messagingTemplate.convertAndSend("/topic/events/" + eventId + "/rounds", statusMessage);
+
+        Claim savedClaim = claimRepository.findById(id).orElse(claim);
+        ClaimResponseDto responseDto = new ClaimResponseDto(
+                savedClaim.getId(),
+                savedClaim.getTicket().getId(),
+                round.getId(),
+                savedClaim.getCardIndex(),
+                savedClaim.getStatus(),
+                savedClaim.getCreatedAt().toString(),
+                savedClaim.getTicket().getSerial()
+        );
 
         return ResponseEntity.ok(ApiResponse.success(responseDto));
     }

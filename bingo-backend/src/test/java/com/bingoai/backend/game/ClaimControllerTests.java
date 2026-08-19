@@ -140,6 +140,52 @@ public class ClaimControllerTests {
     }
 
     @Test
+    public void testApproveClaim_SplitPrize() throws Exception {
+        UUID claimId1 = UUID.randomUUID();
+        UUID claimId2 = UUID.randomUUID();
+        UUID ticketId1 = UUID.randomUUID();
+        UUID ticketId2 = UUID.randomUUID();
+        UUID roundId = UUID.randomUUID();
+        UUID eventId = UUID.randomUUID();
+
+        Event event = new Event();
+        event.setId(eventId);
+
+        Round round = new Round();
+        round.setId(roundId);
+        round.setEvent(event);
+        round.setTieBreakerRule("SPLIT_PRIZE");
+
+        Ticket t1 = new Ticket();
+        t1.setId(ticketId1);
+        t1.setSerial("T111");
+
+        Ticket t2 = new Ticket();
+        t2.setId(ticketId2);
+        t2.setSerial("T222");
+
+        Claim c1 = new Claim(t1, round, 0);
+        c1.setId(claimId1);
+
+        Claim c2 = new Claim(t2, round, 0);
+        c2.setId(claimId2);
+
+        Mockito.when(claimRepository.findById(claimId1)).thenReturn(Optional.of(c1));
+        Mockito.when(claimRepository.findByRoundId(roundId)).thenReturn(java.util.Arrays.asList(c1, c2));
+        Mockito.when(claimRepository.save(any(Claim.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        mockMvc.perform(post("/api/v1/claims/" + claimId1 + "/approve")
+                .with(authentication(getMockPrincipal()))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.status").value("APPROVED"));
+
+        Mockito.verify(claimRepository, Mockito.atLeastOnce()).save(c1);
+        Mockito.verify(claimRepository, Mockito.atLeastOnce()).save(c2);
+    }
+
+    @Test
     public void testRejectClaim_Success() throws Exception {
         UUID claimId = UUID.randomUUID();
         UUID ticketId = UUID.randomUUID();
