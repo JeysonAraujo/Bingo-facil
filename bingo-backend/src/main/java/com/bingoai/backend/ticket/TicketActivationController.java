@@ -29,7 +29,8 @@ public class TicketActivationController {
 
     private Bucket resolveBucket(HttpServletRequest request) {
         String ip = request.getRemoteAddr();
-        if (ip == null) ip = "unknown";
+        if (ip == null)
+            ip = "unknown";
         return buckets.computeIfAbsent(ip, k -> Bucket.builder()
                 .addLimit(Bandwidth.classic(10, Refill.greedy(10, Duration.ofMinutes(1))))
                 .build());
@@ -37,21 +38,22 @@ public class TicketActivationController {
 
     /**
      * Activates a ticket by serial code.
-     * Returns the session token and the full ticket matrix for the player game room.
+     * Returns the session token and the full ticket matrix for the player game
+     * room.
      */
     @PostMapping("/activate")
     public ResponseEntity<ApiResponse<TicketActivationResponseDto>> activateTicket(
             @Valid @RequestBody ActivateTicketRequest request,
             HttpServletRequest httpServletRequest) {
         if (!resolveBucket(httpServletRequest).tryConsume(1)) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Muitas tentativas. Tente novamente mais tarde.");
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Muitas tentativas. Tente novamente mais tarde.");
         }
 
         TicketActivationResponseDto responseDto = ticketActivationService.activateTicket(
                 request.getSerial(),
                 request.getPlayerName(),
-                request.getPlayerPhone()
-        );
+                request.getPlayerPhone());
         return ResponseEntity.ok(ApiResponse.success(responseDto));
     }
 
@@ -64,7 +66,8 @@ public class TicketActivationController {
             @RequestParam String serial,
             HttpServletRequest httpServletRequest) {
         if (!resolveBucket(httpServletRequest).tryConsume(1)) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Muitas tentativas. Tente novamente mais tarde.");
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Muitas tentativas. Tente novamente mais tarde.");
         }
         TicketValidationResponseDto responseDto = ticketActivationService.validateTicket(serial);
         return ResponseEntity.ok(ApiResponse.success(responseDto));

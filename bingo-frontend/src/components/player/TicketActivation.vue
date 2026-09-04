@@ -73,7 +73,7 @@
             </v-card>
 
             <!-- Rodapé -->
-            <p class="footer-text">© 2026 Bingo AI · Todos os direitos reservados</p>
+            <p class="footer-text">© 2026 Bingo Fácil · Todos os direitos reservados</p>
 
           </v-col>
         </v-row>

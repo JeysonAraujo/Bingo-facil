@@ -8,7 +8,7 @@
             <v-icon icon="mdi-shield-lock" size="48" color="white"></v-icon>
           </v-avatar>
           <h1 class="text-h4 font-weight-black text-white tracking-wider mb-1">
-            Bingo-AI
+            Bingo Fácil
           </h1>
           <p class="text-subtitle-1 text-indigo-lighten-3 font-weight-medium">
             Painel Administrativo
