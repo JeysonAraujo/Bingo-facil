@@ -36,7 +36,7 @@ public class WebSocketEventListener {
             if (parts.length >= 4) {
                 String eventId = parts[3];
                 sessionToEventMap.put(sessionId, eventId);
-                eventViewerCountMap.merge(eventId, 1, Integer::sum);
+                eventViewerCountMap.merge(eventId, 1, (a, b) -> a + b);
                 broadcastViewerCount(eventId);
             }
         }
@@ -69,6 +69,6 @@ public class WebSocketEventListener {
 
     private void broadcastViewerCount(String eventId) {
         int count = eventViewerCountMap.getOrDefault(eventId, 0);
-        messagingTemplate.convertAndSend("/topic/events/" + eventId + "/viewers", Map.of("viewerCount", count));
+        messagingTemplate.convertAndSend("/topic/events/" + eventId + "/viewers", java.util.Objects.requireNonNull(Map.of("viewerCount", count)));
     }
 }

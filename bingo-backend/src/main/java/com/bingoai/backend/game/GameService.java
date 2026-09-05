@@ -7,7 +7,6 @@ import com.bingoai.backend.event.RoundRepository;
 import com.bingoai.backend.game.dto.DrawBallMessage;
 import com.bingoai.backend.game.dto.StreamDelayMessage;
 import com.bingoai.backend.ticket.TicketRepository;
-import com.bingoai.backend.game.WinVerificationEngine;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +17,7 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@SuppressWarnings("null")
 public class GameService {
 
     private final EventRepository eventRepository;
@@ -54,7 +54,7 @@ public class GameService {
      */
     public Round getOrCreateActiveRound(UUID eventId) {
         // Ensure event exists
-        Event event = eventRepository.findById(eventId)
+        eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
 
         return roundRepository.findFirstByEventIdAndStatus(eventId, com.bingoai.backend.event.RoundStatus.IN_PROGRESS)
@@ -122,7 +122,7 @@ public class GameService {
                 .collect(Collectors.toSet());
 
         List<String> patterns = round.getPrizes().stream()
-                .map(com.bingoai.backend.event.Prize::getDrawPattern)
+                .map(p -> p != null ? p.getDrawPattern() : "")
                 .collect(Collectors.toList());
         if (patterns.isEmpty()) {
             patterns.add("FULL_CARD");

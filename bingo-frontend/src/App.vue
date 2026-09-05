@@ -6,7 +6,7 @@
       </v-app-bar-title>!-->
 
       <!-- Componente de imagem -->
-      <img src="./assets/logo-bingo-facil-hor.svg" alt="Bingo Fácil – O bingo mais emocionante da internet" height="150px" width="200px" class="my-2">
+      <img src="./assets/logo-bingo-facil-hor.svg" alt="Bingo Fácil – O bingo mais emocionante da internet" height="150px" width="150px" class="my-2">
 
       <v-spacer></v-spacer>
       <v-chip color="secondary" variant="flat" size="small" class="mr-2 text-primary font-weight-bold">

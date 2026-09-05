@@ -30,6 +30,7 @@ public class AdminSeeder implements ApplicationRunner {
 
     @Override
     @Transactional
+    @SuppressWarnings("null")
     public void run(ApplicationArguments args) throws Exception {
         // 1. Seed SuperAdmin if not exists
         if (adminRepository.findByUsername("admin").isEmpty()) {

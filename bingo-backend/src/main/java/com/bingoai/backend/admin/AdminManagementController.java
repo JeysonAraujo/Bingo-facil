@@ -10,6 +10,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -45,7 +46,7 @@ public class AdminManagementController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Você não pode alterar o status da sua própria conta.");
         }
 
-        Admin admin = adminRepository.findById(id)
+        Admin admin = adminRepository.findById(Objects.requireNonNull(id))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Administrador não encontrado."));
 
         admin.setActive(!admin.isActive());
@@ -53,7 +54,7 @@ public class AdminManagementController {
 
         // If deactivated, delete their session tokens immediately
         if (!saved.isActive()) {
-            adminSessionRepository.deleteByAdminId(id);
+            adminSessionRepository.deleteByAdminId(Objects.requireNonNull(id));
             System.out.println("[AdminManagement] Terminated all active sessions for deactivated admin: " + id);
         }
         
@@ -63,7 +64,7 @@ public class AdminManagementController {
 
     @PostMapping("/admins/{id}/send-reset-code")
     public ResponseEntity<ApiResponse<String>> sendResetCode(@PathVariable UUID id) {
-        Admin admin = adminRepository.findById(id)
+        Admin admin = adminRepository.findById(Objects.requireNonNull(id))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Administrador não encontrado."));
 
         // Generate 6-digit code
@@ -91,13 +92,13 @@ public class AdminManagementController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Você não pode excluir sua própria conta.");
         }
 
-        Admin admin = adminRepository.findById(id)
+        Admin admin = adminRepository.findById(Objects.requireNonNull(id))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Administrador não encontrado."));
 
         // Clear active sessions before deletion
-        adminSessionRepository.deleteByAdminId(id);
+        adminSessionRepository.deleteByAdminId(Objects.requireNonNull(id));
         
-        adminRepository.delete(admin);
+        adminRepository.delete(Objects.requireNonNull(admin));
         return ResponseEntity.ok(ApiResponse.success("Administrador excluído com sucesso."));
     }
 }

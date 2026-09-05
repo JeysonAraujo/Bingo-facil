@@ -58,7 +58,7 @@ public class RoundController {
         if (EventStatus.AGUARDANDO.equals(event.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível iniciar uma rodada com o evento no estado AGUARDANDO. Inicie o evento primeiro.");
         }
-        if ("FINISHED".equals(round.getStatus())) {
+        if (RoundStatus.FINISHED.equals(round.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Uma rodada já finalizada não pode ser reiniciada.");
         }
 
@@ -123,7 +123,7 @@ public class RoundController {
         if (EventStatus.FINALIZADO.equals(event.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível alterar rodadas de um evento finalizado.");
         }
-        if ("FINISHED".equals(round.getStatus())) {
+        if (RoundStatus.FINISHED.equals(round.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Uma rodada já finalizada não pode ser cancelada.");
         }
 

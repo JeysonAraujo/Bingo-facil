@@ -1,7 +1,6 @@
 package com.bingoai.backend.game;
 
 import com.bingoai.backend.common.dto.ApiResponse;
-import com.bingoai.backend.event.Prize;
 import com.bingoai.backend.event.Round;
 import com.bingoai.backend.game.dto.BingoClaimMessage;
 import com.bingoai.backend.game.dto.ClaimRequestDto;
@@ -214,11 +213,11 @@ public class ClaimController {
                 for (Claim c : pendingClaims) {
                     com.bingoai.backend.ticket.CardMatrix card = c.getTicket().getMatrix().getCards().get(c.getCardIndex());
                     int sum = 0;
-                    if (card.getB() != null) sum += card.getB().stream().filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum();
-                    if (card.getI() != null) sum += card.getI().stream().filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum();
-                    if (card.getN() != null) sum += card.getN().stream().filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum();
-                    if (card.getG() != null) sum += card.getG().stream().filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum();
-                    if (card.getO() != null) sum += card.getO().stream().filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum();
+                    if (card.getB() != null) sum += card.getB().stream().filter(java.util.Objects::nonNull).mapToInt(v -> v != null ? v : 0).sum();
+                    if (card.getI() != null) sum += card.getI().stream().filter(java.util.Objects::nonNull).mapToInt(v -> v != null ? v : 0).sum();
+                    if (card.getN() != null) sum += card.getN().stream().filter(java.util.Objects::nonNull).mapToInt(v -> v != null ? v : 0).sum();
+                    if (card.getG() != null) sum += card.getG().stream().filter(java.util.Objects::nonNull).mapToInt(v -> v != null ? v : 0).sum();
+                    if (card.getO() != null) sum += card.getO().stream().filter(java.util.Objects::nonNull).mapToInt(v -> v != null ? v : 0).sum();
 
                     if (sum > maxSum) {
                         maxSum = sum;
@@ -264,7 +263,9 @@ public class ClaimController {
                     }
                 }
                 round.setStatus(com.bingoai.backend.event.RoundStatus.FINISHED);
-                auditLogService.logAction(admin, "APPROVE_CLAIM_METRIC", "Approved claim " + winnerClaim.getId() + " by metric draw (sum: " + maxSum + ").");
+                if (winnerClaim != null) {
+                    auditLogService.logAction(admin, "APPROVE_CLAIM_METRIC", "Approved claim " + winnerClaim.getId() + " by metric draw (sum: " + maxSum + ").");
+                }
             } else if ("ROULETTE_DRAW".equals(rule)) {
                 // Select random winner
                 int winningIndex = new java.util.Random().nextInt(pendingClaims.size());

@@ -32,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ClaimController.class)
 @Import(SecurityConfig.class)
+@SuppressWarnings("null")
 public class ClaimControllerTests {
 
     @Autowired

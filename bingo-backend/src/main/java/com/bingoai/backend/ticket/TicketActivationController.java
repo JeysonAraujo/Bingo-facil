@@ -10,7 +10,6 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Refill;
 
 import java.time.Duration;
 import java.util.Map;
@@ -32,7 +31,7 @@ public class TicketActivationController {
         if (ip == null)
             ip = "unknown";
         return buckets.computeIfAbsent(ip, k -> Bucket.builder()
-                .addLimit(Bandwidth.classic(10, Refill.greedy(10, Duration.ofMinutes(1))))
+                .addLimit(Bandwidth.builder().capacity(10).refillGreedy(10, Duration.ofMinutes(1)).build())
                 .build());
     }
 

@@ -11,24 +11,21 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-import org.springframework.lang.NonNull;
 
 @Service
+@SuppressWarnings("null")
 public class TicketService {
 
     private final TicketRepository ticketRepository;
     private final TicketGenerator ticketGenerator;
     private final EventRepository eventRepository;
-    private final jakarta.persistence.EntityManager entityManager;
 
     public TicketService(TicketRepository ticketRepository,
                          TicketGenerator ticketGenerator,
-                         EventRepository eventRepository,
-                         jakarta.persistence.EntityManager entityManager) {
+                         EventRepository eventRepository) {
         this.ticketRepository = ticketRepository;
         this.ticketGenerator = ticketGenerator;
         this.eventRepository = eventRepository;
-        this.entityManager = entityManager;
     }
 
     /**
@@ -105,11 +102,11 @@ public class TicketService {
      * Returns the title of the event without loading the LAZY-associated Event entity
      * from within Ticket, avoiding LazyInitializationException in the PDF generator.
      */
-    public Optional<String> getEventTitle(@NonNull UUID eventId) {
-        return eventRepository.findById(eventId).map(Event::getTitle);
+    public Optional<String> getEventTitle(UUID eventId) {
+        return eventRepository.findById(eventId).map(e -> e.getTitle());
     }
 
-    public Optional<Event> getEvent(@NonNull UUID eventId) {
+    public Optional<Event> getEvent(UUID eventId) {
         return eventRepository.findById(eventId);
     }
 }

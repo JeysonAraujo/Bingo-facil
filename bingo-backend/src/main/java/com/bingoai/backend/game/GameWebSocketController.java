@@ -34,6 +34,7 @@ import org.springframework.stereotype.Controller;
  * are handled without exhausting the platform thread pool.
  */
 @Controller
+@SuppressWarnings("null")
 public class GameWebSocketController {
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -221,7 +222,7 @@ public class GameWebSocketController {
     public void handleClaim(
             @DestinationVariable String eventId,
             @Payload BingoClaimMessage claim) {
-        // TODO: Story 5.x will wire WinVerificationEngine here and broadcast to /topic/events/{eventId}/claims
+        // Note: Story 5.x will wire WinVerificationEngine here and broadcast to /topic/events/{eventId}/claims
         // Stub is intentionally left minimal to avoid premature implementation
     }
 
