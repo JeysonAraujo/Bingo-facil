@@ -8,7 +8,7 @@
             <span class="live-dot"></span>
             <span class="live-pulse"></span>
           </div>
-          <span class="navbar-title">BINGO <span class="accent-text">FÁCIL</span> LIVE</span>
+          <span class="navbar-title">BINGO <span class="accent-text">AI</span> LIVE</span>
         </div>
 
         <div class="d-flex align-center gap-2">

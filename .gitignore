@@ -19,7 +19,6 @@
 
 # Java / Backend
 **/target/
-**/.mvn/
 **/pom.xml.tag
 **/pom.xml.releaseBackup
 **/pom.xml.next
