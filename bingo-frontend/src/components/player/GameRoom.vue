@@ -1,14 +1,14 @@
 <template>
   <v-app class="game-app">
     <!-- Navbar / Header -->
-    <v-app-bar flat class="game-navbar px-4" color="#0b132b" height="70">
+    <v-app-bar flat class="game-navbar px-4" color="#0b132b" height="60">
       <div class="d-flex align-center w-full justify-between">
         <div class="d-flex align-center gap-3">
           <div class="live-dot-container">
             <span class="live-dot"></span>
             <span class="live-pulse"></span>
           </div>
-          <span class="navbar-title">BINGO <span class="accent-text">AI</span> LIVE</span>
+          <span class="navbar-title">BINGO <span class="accent-text">FÁCIL</span> LIVE</span>
         </div>
 
         <div class="d-flex align-center gap-2">
@@ -57,12 +57,12 @@
         </div>
       </div>
 
-      <v-container fluid class="pa-4 pa-sm-6 max-w-7xl mx-auto">
+      <v-container fluid class="pa-2 pa-sm-4 max-w-7xl mx-auto">
         <!-- Main Layout Grid -->
         <v-row class="game-layout-row">
           
           <!-- LEFT COLUMN: Live Stream & Live Activity (Desktop: 7 cols, Mobile: 12 cols) -->
-          <v-col cols="12" md="6" lg="7" class="d-flex flex-column gap-4">
+          <v-col cols="12" md="6" lg="7" class="d-flex flex-column gap-3">
             <!-- YouTube Stream Container -->
             <div id="youtube-stream-container" class="youtube-stream-card">
               <div class="iframe-container">
@@ -144,7 +144,7 @@
 
                 <!-- Pattern Window -->
                 <v-window-item value="pattern" class="pattern-window">
-                  <div class="d-flex align-center justify-center pa-6 text-center w-100 h-100">
+                  <div class="d-flex align-center justify-center pa-3 pa-sm-4 text-center w-100 h-100">
                     <div>
                       <h3 class="pattern-title mb-2">{{ activeRoundPatternTitle }}</h3>
                       <p class="pattern-subtitle mb-4">{{ activeRoundPatternSubtitle }}</p>
@@ -169,7 +169,7 @@
           </v-col>
 
           <!-- RIGHT COLUMN: Bingo Cards (Desktop: 5 cols, Mobile: 12 cols) -->
-          <v-col cols="12" md="6" lg="5" class="d-flex flex-column gap-4 justify-between">
+          <v-col cols="12" md="6" lg="5" class="d-flex flex-column gap-3 justify-between">
             <div class="right-column-container d-flex flex-column h-full justify-between">
               
               <!-- Cards Area Header -->
@@ -272,7 +272,7 @@
               </div>
 
               <!-- BINGO CLAIM BUTTON CONTAINER -->
-              <div id="bingo-claim-button-container" class="bingo-action-area mt-4">
+              <div id="bingo-claim-button-container" class="bingo-action-area mt-2">
                 <button
                   ref="claimBingoBtnRef"
                   class="claim-bingo-btn"
@@ -1223,7 +1223,7 @@ const youtubeEmbedUrl = computed(() => {
   
   let videoId = ''
   try {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|live\/|watch\?v=|\&v=)([^#\&\?]*).*/
     const match = url.match(regExp)
     if (match && match[2].length === 11) {
       videoId = match[2]
@@ -1415,6 +1415,8 @@ watch(activeTab, (newTab) => {
   width: 12px;
   height: 12px;
   margin-right: 4px;
+  margin-top: 6px;
+  margin-left: 10px;
 }
 
 .live-dot {
@@ -1462,11 +1464,11 @@ watch(activeTab, (newTab) => {
 
 .game-bg {
   background: radial-gradient(circle at top, #1c2541 0%, #0b132b 80%);
-  min-height: calc(100vh - 70px);
+  min-height: calc(100vh - 60px);
 }
 
 .game-layout-row {
-  min-height: calc(100vh - 120px);
+  min-height: calc(100vh - 90px);
 }
 
 /* Left Column Styling */
@@ -1484,6 +1486,13 @@ watch(activeTab, (newTab) => {
   padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
   height: 0;
   background: #000;
+}
+
+@media (min-width: 960px) {
+  .iframe-container {
+    padding-bottom: 48%; /* Optimized desktop video height */
+    max-height: 270px;
+  }
 }
 
 .iframe-container iframe {
@@ -1515,14 +1524,24 @@ watch(activeTab, (newTab) => {
   background: #1c2541 !important;
   color: #ffffff !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  height: 320px;
+  height: 350px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .live-panel-content {
   flex-grow: 1;
   overflow: hidden;
+  height: calc(100% - 48px);
+}
+
+.live-panel-content :deep(.v-window__container) {
+  height: 100% !important;
+}
+
+.live-panel-content :deep(.v-window-item) {
+  height: 100% !important;
 }
 
 /* Chat Styling */
@@ -1530,16 +1549,17 @@ watch(activeTab, (newTab) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  justify-content: space-between;
+  overflow: hidden;
 }
 
 .chat-messages {
-  flex-grow: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
-  padding: 16px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   scroll-behavior: smooth;
 }
 
@@ -1584,12 +1604,14 @@ watch(activeTab, (newTab) => {
 }
 
 .chat-input-area {
-  padding: 10px 16px;
+  margin-top: auto;
+  flex-shrink: 0;
+  padding: 8px 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   gap: 10px;
   align-items: center;
-  background: rgba(11, 19, 43, 0.5);
+  background: rgba(11, 19, 43, 0.8);
 }
 
 .chat-input-area input {
@@ -1597,7 +1619,7 @@ watch(activeTab, (newTab) => {
   background: #0b132b;
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: #ffffff;
-  padding: 8px 16px;
+  padding: 6px 14px;
   border-radius: 20px;
   font-size: 0.85rem;
   outline: none;
@@ -1612,20 +1634,21 @@ watch(activeTab, (newTab) => {
 .pattern-title {
   color: #ffd600;
   font-weight: 900;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   letter-spacing: 0.05em;
 }
 
 .pattern-subtitle {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: #94a3b8;
+  margin-bottom: 8px !important;
 }
 
 .pattern-grid-preview {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
-  width: 140px;
+  gap: 4px;
+  width: 120px;
   margin: 0 auto;
 }
 
@@ -1654,7 +1677,7 @@ watch(activeTab, (newTab) => {
 }
 
 .cards-title {
-  font-size: 1.4rem;
+  font-size: 1.25rem;
   font-weight: 800;
   color: #ffffff;
 }
@@ -1685,7 +1708,7 @@ watch(activeTab, (newTab) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 10px;
+  margin-top: 4px;
 }
 
 .cards-desktop-grid {
@@ -1696,7 +1719,7 @@ watch(activeTab, (newTab) => {
   .cards-desktop-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
+    gap: 10px;
     width: 100%;
   }
 }
@@ -1748,15 +1771,15 @@ watch(activeTab, (newTab) => {
   position: relative;
   background: linear-gradient(135deg, #ffd600 0%, #ff8f00 100%);
   border: none;
-  padding: 18px 0;
-  border-radius: 16px;
+  padding: 12px 0;
+  border-radius: 14px;
   font-weight: 900;
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   color: #0b132b;
   letter-spacing: 0.05em;
   cursor: pointer;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(255, 214, 0, 0.3);
+  box-shadow: 0 8px 25px rgba(255, 214, 0, 0.3);
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   display: flex;
   align-items: center;

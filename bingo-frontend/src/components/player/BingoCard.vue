@@ -130,13 +130,13 @@ const markedCount = computed(() => {
 .bingo-card {
   background: rgba(255, 255, 255, 0.95);
   border: 2px solid rgba(224, 224, 224, 0.8);
-  border-radius: 20px;
-  padding: 16px;
+  border-radius: 16px;
+  padding: 10px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
   user-select: none;
 }
 
@@ -155,7 +155,7 @@ const markedCount = computed(() => {
 .card-header-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
+  gap: 5px;
   text-align: center;
 }
 
@@ -163,9 +163,9 @@ const markedCount = computed(() => {
   background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
   color: #ffffff;
   font-weight: 900;
-  font-size: 1.35rem;
-  padding: 8px 0;
-  border-radius: 10px;
+  font-size: 1.05rem;
+  padding: 4px 0;
+  border-radius: 8px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   letter-spacing: 0.05em;
   box-shadow: 0 4px 10px rgba(13, 71, 161, 0.2);
@@ -175,14 +175,14 @@ const markedCount = computed(() => {
 .card-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
+  gap: 5px;
   aspect-ratio: 1;
 }
 
 .number-cell {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 8px;
   aspect-ratio: 1;
   display: flex;
   align-items: center;
@@ -208,7 +208,7 @@ const markedCount = computed(() => {
 }
 
 .cell-number {
-  font-size: 1.25rem;
+  font-size: 1.05rem;
   font-weight: 800;
   color: #1e293b;
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -236,7 +236,7 @@ const markedCount = computed(() => {
   color: #ffffff;
   position: relative;
   z-index: 2;
-  font-size: 1.35rem;
+  font-size: 1.15rem;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 

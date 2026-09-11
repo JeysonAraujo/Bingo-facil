@@ -283,6 +283,30 @@
                     </div>
                   </div>
 
+                  <!-- Table Mini-Map Selector for multiple cards -->
+                  <div v-if="(adminStore.searchedTicket?.matrix?.cards?.length || 0) > 1" class="d-flex flex-column align-center my-4">
+                    <span class="text-caption text-slate-400 font-weight-bold mb-2">Tabelas da Cartela (Clique para alternar):</span>
+                    <div class="mini-map-selector">
+                      <button
+                        v-for="(card, cardIdx) in adminStore.searchedTicket?.matrix?.cards"
+                        :key="cardIdx"
+                        class="mini-map-dot"
+                        :class="{
+                          'dot-active': activeOverrideCardIndex === Number(cardIdx),
+                          'dot-has-override': cardHasOverrides(Number(cardIdx))
+                        }"
+                        @click="activeOverrideCardIndex = Number(cardIdx)"
+                        :aria-label="`Ver Tabela ${Number(cardIdx) + 1}`"
+                      >
+                        <span>{{ Number(cardIdx) + 1 }}</span>
+                        <span v-if="cardHasOverrides(Number(cardIdx))" class="override-indicator-dot" title="Possui override manual marcado"></span>
+                      </button>
+                    </div>
+                    <div class="text-caption text-amber-400 font-weight-medium mt-1">
+                      Exibindo Tabela {{ activeOverrideCardIndex + 1 }} de {{ adminStore.searchedTicket?.matrix?.cards?.length || 1 }}
+                    </div>
+                  </div>
+
                   <!-- Grid 5x5 Card Viewer -->
                   <div class="override-grid-outer d-flex justify-center my-4">
                     <div class="override-bingo-card">
@@ -363,7 +387,7 @@
               </div>
 
               <!-- Claims Queue Scroll Area -->
-              <div v-else class="claims-list-area d-flex flex-column gap-2 overflow-y-auto pr-1 flex-grow-1" style="max-height: 250px;">
+              <div v-else class="claims-list-area d-flex flex-column gap-2 overflow-y-auto pr-1 flex-grow-1" style="max-height: 480px;">
                 <v-alert
                   v-if="pendingClaimsCount > 1"
                   type="warning"
@@ -435,7 +459,7 @@
               </div>
 
               <!-- History Scroll Area -->
-              <div v-else class="history-scroll-area flex-grow-1 pr-1 overflow-y-auto" style="max-height: 250px;">
+              <div v-else class="history-scroll-area flex-grow-1 pr-1 overflow-y-auto" style="max-height: 480px;">
                 <div
                   v-for="(ball, idx) in chronologicalDraws"
                   :key="ball"
@@ -778,7 +802,7 @@
               Sorteios Cronológicos
             </h4>
 
-            <div class="history-scroll-area flex-grow-1 bg-slate-950 border-slate rounded-lg pa-4 overflow-y-auto" style="height: 300px;">
+            <div class="history-scroll-area flex-grow-1 bg-slate-950 border-slate rounded-lg pa-4 overflow-y-auto" style="max-height: 480px; min-height: 250px;">
               <div v-if="adminStore.drawnConsoleNumbers.length === 0" class="text-caption text-slate-500 py-8 text-center">
                 Nenhuma bola sorteada ainda.
               </div>
@@ -1162,7 +1186,7 @@ const activeRound = computed(() => {
 })
 
 const activeRoundTieBreakerRule = computed(() => {
-  return activeRound.value?.tieBreakerRule || 'SPLIT_PRIZE'
+  return (activeRound.value as any)?.tieBreakerRule || 'SPLIT_PRIZE'
 })
 
 const activeRoundTieBreakerRuleLabel = computed(() => {
@@ -1228,13 +1252,39 @@ interface Cell {
   letter: string
   value: number
 }
+
+const activeOverrideCardIndex = ref(0)
+
+watch(() => adminStore.searchedTicket, () => {
+  activeOverrideCardIndex.value = 0
+})
+
+const cardHasOverrides = (cardIndex: number): boolean => {
+  const ticket = adminStore.searchedTicket
+  if (!ticket || !ticket.matrix || !ticket.matrix.cards || !ticket.markedOverrides || ticket.markedOverrides.length === 0) {
+    return false
+  }
+  const card = ticket.matrix.cards[cardIndex]
+  if (!card || !card.b || !card.i || !card.n || !card.g || !card.o) return false
+  const cardValues = [
+    ...card.b,
+    ...card.i,
+    ...card.n.filter((val: number, idx: number) => idx !== 2),
+    ...card.g,
+    ...card.o
+  ]
+  return cardValues.some((val: number) => val !== 0 && ticket.markedOverrides.includes(val))
+}
+
 const ticketCells = computed<Cell[]>(() => {
   const ticket = adminStore.searchedTicket
   if (!ticket || !ticket.matrix || !ticket.matrix.cards || ticket.matrix.cards.length === 0) {
     return []
   }
 
-  const card = ticket.matrix.cards[0]
+  const cardIndex = activeOverrideCardIndex.value < ticket.matrix.cards.length ? activeOverrideCardIndex.value : 0
+  const card = ticket.matrix.cards[cardIndex]
+  if (!card) return []
   const cells: Cell[] = []
   
   // Format cells by grid rows (index 0 to 4)
@@ -1880,6 +1930,54 @@ watch(
 .searched-ticket-card {
   background-color: #080f20;
   border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mini-map-selector {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.mini-map-dot {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #1c2541;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  color: #94a3b8;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.mini-map-dot.dot-active {
+  background: #ffd600;
+  color: #0b132b;
+  border-color: #ffd600;
+  box-shadow: 0 0 10px rgba(255, 214, 0, 0.4);
+  transform: scale(1.1);
+}
+
+.mini-map-dot.dot-has-override:not(.dot-active) {
+  border-color: #a855f7;
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+}
+
+.override-indicator-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  background-color: #a855f7;
+  border: 2px solid #0f172a;
+  border-radius: 50%;
 }
 
 .override-bingo-card {
