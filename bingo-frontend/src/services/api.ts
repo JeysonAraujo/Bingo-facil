@@ -97,7 +97,7 @@ export interface ActivateTicketRequest {
 
 // Pre-configured Axios instance
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1',
   headers: {
     'Content-Type': 'application/json'
   }
@@ -113,6 +113,16 @@ api.interceptors.request.use(
     return config
   },
   (error) => {
+    return Promise.reject(error)
+  }
+)
+
+// Response interceptor for global error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('[API Error]', error.response?.status, error.message)
+    // Add logic here to trigger global error notifications if needed
     return Promise.reject(error)
   }
 )

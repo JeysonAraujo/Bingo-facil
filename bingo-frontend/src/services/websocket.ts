@@ -40,7 +40,7 @@ export type WsConnectionStatus = 'disconnected' | 'connecting' | 'connected' | '
 
 // ─── WebSocket Service ────────────────────────────────────────────────────────
 
-const WS_BASE_URL = 'http://localhost:8080/ws/bingo'
+const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'http://localhost:8080/ws/bingo'
 
 /**
  * Creates, configures, and activates a STOMP client connected to the bingo backend.

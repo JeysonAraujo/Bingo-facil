@@ -21,8 +21,8 @@ public class Ticket {
     @Column(nullable = false, unique = true, length = 50)
     private String serial;
 
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(columnDefinition = "jsonb", nullable = false)
-    @Convert(converter = TicketMatrixConverter.class)
     private TicketMatrix matrix;
 
     @Column(nullable = false)
@@ -37,8 +37,8 @@ public class Ticket {
     @Column(name = "player_phone", length = 30)
     private String playerPhone;
 
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "marked_overrides", columnDefinition = "jsonb", nullable = false)
-    @Convert(converter = TicketOverridesConverter.class)
     private List<Integer> markedOverrides = new ArrayList<>();
 
     public Ticket() {}
