@@ -10,7 +10,7 @@
 
       <v-spacer></v-spacer>
       <v-chip color="secondary" variant="flat" size="small" class="mr-2 text-primary font-weight-bold">
-        🔴 Live - Sincronizado
+        🔴 Live
       </v-chip>
     </v-app-bar>
 

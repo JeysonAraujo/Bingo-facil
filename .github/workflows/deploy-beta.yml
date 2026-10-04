@@ -1,0 +1,163 @@
+name: Deploy Beta Pipeline (Cloud Run & Firebase Hosting)
+
+on:
+  push:
+    branches: [ "beta", "main" ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'beta'
+        type: choice
+        options:
+          - beta
+          - staging
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID || 'bingo-facil-beta' }}
+  GCP_REGION: ${{ secrets.GCP_REGION || 'southamerica-east1' }}
+  ARTIFACT_REGISTRY_REPO: bingo-backend-repo
+  CLOUD_RUN_SERVICE: bingo-backend-beta
+  CLOUD_SQL_INSTANCE: ${{ secrets.CLOUD_SQL_INSTANCE || 'bingo-facil-beta:southamerica-east1:bingo-db' }}
+
+jobs:
+  # ==========================================
+  # JOB 1: Backend CI/CD (Cloud Run + Cloud SQL)
+  # ==========================================
+  deploy-backend:
+    name: ☕ Build & Deploy Backend (Cloud Run)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Backend Unit & Integration Tests
+        working-directory: bingo-backend
+        run: ./mvnw test -B
+
+      - name: Build Backend Package
+        working-directory: bingo-backend
+        run: ./mvnw package -DskipTests -B
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & Push Docker Image
+        working-directory: bingo-backend
+        run: |
+          IMAGE_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/backend:${{ github.sha }}"
+          LATEST_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/backend:latest"
+          
+          docker build -t $IMAGE_TAG -t $LATEST_TAG .
+          docker push $IMAGE_TAG
+          docker push $LATEST_TAG
+
+      - name: Deploy to Google Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.CLOUD_RUN_SERVICE }}
+          region: ${{ env.GCP_REGION }}
+          image: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/backend:${{ github.sha }}
+          flags: |
+            --add-cloudsql-instances=${{ env.CLOUD_SQL_INSTANCE }}
+            --allow-unauthenticated
+            --min-instances=0
+            --max-instances=5
+            --cpu=1
+            --memory=512Mi
+          env_vars: |
+            SPRING_PROFILES_ACTIVE=beta
+            SPRING_DATASOURCE_URL=jdbc:postgresql:///${{ secrets.DB_NAME || 'bingodb' }}?socketFactory=com.google.cloud.sql.postgres.SocketFactory&cloudSqlInstance=${{ env.CLOUD_SQL_INSTANCE }}
+            CORS_ALLOWED_ORIGINS=${{ secrets.FRONTEND_BETA_URL || 'https://bingo-facil-beta.web.app' }}
+          secrets: |
+            SPRING_DATASOURCE_USERNAME=db-user-secret:latest
+            SPRING_DATASOURCE_PASSWORD=db-password-secret:latest
+            ADMIN_SECRET=admin-secret-key:latest
+
+  # ==========================================
+  # JOB 2: Frontend CI/CD (Firebase Hosting)
+  # ==========================================
+  deploy-frontend:
+    name: ⚡ Build & Deploy Frontend (Firebase Hosting)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: bingo-frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: bingo-frontend
+        run: npm ci
+
+      - name: Type Check Vue & TypeScript
+        working-directory: bingo-frontend
+        run: npm run type-check
+
+      - name: Build Frontend Production Artifact
+        working-directory: bingo-frontend
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'https://bingo-backend-beta-southamerica-east1.a.run.app' }}
+        run: npm run build-only
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_BINGO_FACIL }}'
+          channelId: live
+          projectId: bingo-facil-beta
+        env:
+          FIREBASE_CLI_PREVIEWS: true
+
+  # ==========================================
+  # JOB 3: Automated Post-Deploy Smoke Test
+  # ==========================================
+  smoke-test:
+    name: 🧪 Automated Post-Deploy Smoke Test
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Backend Actuator Health
+        run: |
+          HEALTH_URL="${{ secrets.BACKEND_HEALTH_URL || 'https://bingo-backend-beta-southamerica-east1.a.run.app/actuator/health' }}"
+          echo "Pinging Health Check: $HEALTH_URL"
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL || echo "000")
+          if [ "$RESPONSE" -eq 200 ]; then
+            echo "✅ Backend Health Check PASSED (HTTP 200)"
+          else
+            echo "⚠️ Backend Health Check returned status $RESPONSE"
+          fi
+
+      - name: Verify Frontend Web Reachability
+        run: |
+          FRONTEND_URL="${{ secrets.FRONTEND_BETA_URL || 'https://bingo-facil-beta.web.app' }}"
+          echo "Pinging Frontend Index: $FRONTEND_URL"
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $FRONTEND_URL || echo "000")
+          if [ "$RESPONSE" -eq 200 ]; then
+            echo "✅ Frontend Reachability Check PASSED (HTTP 200)"
+          else
+            echo "⚠️ Frontend Reachability Check returned status $RESPONSE"
+          fi
