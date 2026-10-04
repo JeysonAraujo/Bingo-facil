@@ -1170,7 +1170,7 @@ const handleDownloadPdf = async () => {
 
 // Computed properties
 const eventTitle = computed(() => adminStore.activeConsoleEvent?.title || 'Carregando…')
-const isConnected = computed(() => !!adminStore._wsAdminClient?.connected)
+const isConnected = computed(() => adminStore.isConnected)
 const isRoundInProgress = computed(() => {
   return adminStore.activeConsoleEvent?.rounds?.some(r => r.status === 'IN_PROGRESS') || false
 })

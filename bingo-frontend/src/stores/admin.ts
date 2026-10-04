@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import api, { type ApiResponse, type EventResponseDto, type CreateEventRequest } from '../services/api'
-import { createWebSocketClient } from '../services/websocket'
+import { createWebSocketClient, type WsConnectionStatus } from '../services/websocket'
 import { useAuthStore } from './auth'
 
 export const useAdminStore = defineStore('admin', {
@@ -13,12 +13,17 @@ export const useAdminStore = defineStore('admin', {
     activeConsoleEvent: null as EventResponseDto | null,
     drawnConsoleNumbers: [] as number[],
     latencySeconds: 0,
+    connectionStatus: 'disconnected' as WsConnectionStatus,
     _wsAdminClient: null as any,
     searchedTicket: null as any, // TicketResponseDto for overrides
     claims: [] as any[],
     ticketsNaBoaCount: 0,
     managedAdmins: [] as any[]
   }),
+
+  getters: {
+    isConnected: (state) => state.connectionStatus === 'connected' || !!state._wsAdminClient?.connected
+  },
 
   actions: {
     async fetchEvents() {
@@ -308,7 +313,9 @@ export const useAdminStore = defineStore('admin', {
             this.drawnConsoleNumbers.splice(idx, 1)
           }
         },
-        () => {}, // Status callback ignored for simplicity in admin panel
+        (status: WsConnectionStatus) => {
+          this.connectionStatus = status
+        },
         null, // ticketId
         undefined, // onAnnouncement
         undefined, // onTicketOverride

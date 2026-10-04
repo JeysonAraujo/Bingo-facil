@@ -95,9 +95,34 @@ export interface ActivateTicketRequest {
   playerPhone: string
 }
 
+/**
+ * Safely resolves the API Base URL, guaranteeing that /api/v1 is present.
+ * Uses window.location as fallback when running locally or on dynamic networks.
+ */
+export function getApiBaseUrl(): string {
+  let envUrl = import.meta.env.VITE_API_BASE_URL
+  if (!envUrl) {
+    if (typeof window !== 'undefined' && window.location) {
+      const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:'
+      const hostname = window.location.hostname || 'localhost'
+      return `${protocol}//${hostname}:8080/api/v1`
+    }
+    return 'http://localhost:8080/api/v1'
+  }
+  envUrl = envUrl.replace(/\/+$/, '')
+  if (!envUrl.endsWith('/api/v1')) {
+    if (envUrl.endsWith('/api')) {
+      envUrl = `${envUrl}/v1`
+    } else {
+      envUrl = `${envUrl}/api/v1`
+    }
+  }
+  return envUrl
+}
+
 // Pre-configured Axios instance
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1',
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json'
   }

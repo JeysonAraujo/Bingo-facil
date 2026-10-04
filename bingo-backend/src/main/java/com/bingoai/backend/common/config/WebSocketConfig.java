@@ -48,7 +48,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(@NonNull StompEndpointRegistry registry) {
         // Primary WebSocket endpoint with SockJS fallback for broad client compatibility
         registry.addEndpoint("/ws/bingo")
-                .setAllowedOrigins(allowedOrigin)
+                .setAllowedOriginPatterns("*")
                 .withSockJS();
     }
 
@@ -60,33 +60,37 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     @NonNull org.springframework.messaging.Message<?> message,
                     @NonNull org.springframework.messaging.MessageChannel channel) {
                 
-                org.springframework.messaging.simp.stomp.StompHeaderAccessor accessor =
-                        org.springframework.messaging.support.MessageHeaderAccessor.getAccessor(
-                                message, org.springframework.messaging.simp.stomp.StompHeaderAccessor.class);
-                
-                if (accessor != null && org.springframework.messaging.simp.stomp.StompCommand.CONNECT.equals(accessor.getCommand())) {
-                    String authHeader = accessor.getFirstNativeHeader("Authorization");
-                    if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                        String token = authHeader.substring(7);
-                        java.util.Optional<com.bingoai.backend.admin.AdminSession> sessionOpt =
-                                adminSessionRepository.findByToken(token);
-                        
-                        if (sessionOpt.isPresent()) {
-                            com.bingoai.backend.admin.AdminSession session = sessionOpt.get();
-                            if (session.getExpiresAt().isAfter(java.time.OffsetDateTime.now())) {
-                                com.bingoai.backend.admin.Admin admin = session.getAdmin();
-                                org.springframework.security.authentication.UsernamePasswordAuthenticationToken auth =
-                                        new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                                                admin,
-                                                null,
-                                                java.util.Collections.singletonList(
-                                                        new org.springframework.security.core.authority.SimpleGrantedAuthority(admin.getRole())
-                                                )
-                                        );
-                                accessor.setUser(auth);
+                try {
+                    org.springframework.messaging.simp.stomp.StompHeaderAccessor accessor =
+                            org.springframework.messaging.support.MessageHeaderAccessor.getAccessor(
+                                    message, org.springframework.messaging.simp.stomp.StompHeaderAccessor.class);
+                    
+                    if (accessor != null && org.springframework.messaging.simp.stomp.StompCommand.CONNECT.equals(accessor.getCommand())) {
+                        String authHeader = accessor.getFirstNativeHeader("Authorization");
+                        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                            String token = authHeader.substring(7);
+                            java.util.Optional<com.bingoai.backend.admin.AdminSession> sessionOpt =
+                                    adminSessionRepository.findByToken(token);
+                            
+                            if (sessionOpt.isPresent()) {
+                                com.bingoai.backend.admin.AdminSession session = sessionOpt.get();
+                                if (session.getExpiresAt().isAfter(java.time.OffsetDateTime.now())) {
+                                    com.bingoai.backend.admin.Admin admin = session.getAdmin();
+                                    org.springframework.security.authentication.UsernamePasswordAuthenticationToken auth =
+                                            new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                                    admin,
+                                                    null,
+                                                    java.util.Collections.singletonList(
+                                                            new org.springframework.security.core.authority.SimpleGrantedAuthority(admin.getRole())
+                                                    )
+                                            );
+                                    accessor.setUser(auth);
+                                }
                             }
                         }
                     }
+                } catch (Exception e) {
+                    // Suppress transient DB/auth errors during channel intercepting to prevent dropping connection
                 }
                 return message;
             }

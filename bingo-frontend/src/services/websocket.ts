@@ -1,5 +1,6 @@
 import { Client, type IMessage } from '@stomp/stompjs'
 import SockJS from 'sockjs-client/dist/sockjs.min.js'
+import { getApiBaseUrl } from './api'
 
 // ─── Typed WebSocket Message Interfaces ──────────────────────────────────────
 
@@ -40,7 +41,14 @@ export type WsConnectionStatus = 'disconnected' | 'connecting' | 'connected' | '
 
 // ─── WebSocket Service ────────────────────────────────────────────────────────
 
-const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'http://localhost:8080/ws/bingo'
+export function getWsBaseUrl(): string {
+  if (import.meta.env.VITE_WS_BASE_URL) {
+    return import.meta.env.VITE_WS_BASE_URL
+  }
+  const apiBase = getApiBaseUrl()
+  const rootUrl = apiBase.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '')
+  return `${rootUrl}/ws/bingo`
+}
 
 /**
  * Creates, configures, and activates a STOMP client connected to the bingo backend.
@@ -80,9 +88,10 @@ export function createWebSocketClient(
   onNaBoa?: (count: number) => void,
   onEventStatus?: (status: string) => void
 ): Client {
+  const wsUrl = getWsBaseUrl()
   const client = new Client({
     // SockJS factory: provides HTTP long-polling fallback automatically
-    webSocketFactory: () => new SockJS(WS_BASE_URL),
+    webSocketFactory: () => new SockJS(wsUrl),
 
     // Include session token in STOMP CONNECT frame headers
     // (full JWT auth to be enforced in Story 5.x; currently permissive)
