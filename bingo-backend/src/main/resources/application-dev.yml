@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5433/bingodb?stringtype=unspecified
+    url: jdbc:postgresql://127.0.0.1:5433/bingodb?stringtype=unspecified
     username: bingo_user
     password: bingo_password
     driver-class-name: org.postgresql.Driver

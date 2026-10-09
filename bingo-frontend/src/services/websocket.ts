@@ -43,7 +43,8 @@ export type WsConnectionStatus = 'disconnected' | 'connecting' | 'connected' | '
 
 export function getWsBaseUrl(): string {
   if (import.meta.env.VITE_WS_BASE_URL) {
-    return import.meta.env.VITE_WS_BASE_URL
+    let url = import.meta.env.VITE_WS_BASE_URL as string;
+    return url.replace(/^wss:/i, 'https:').replace(/^ws:/i, 'http:');
   }
   const apiBase = getApiBaseUrl()
   const rootUrl = apiBase.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '')
