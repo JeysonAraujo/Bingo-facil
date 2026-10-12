@@ -27,6 +27,7 @@ public class SmtpEmailServiceTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         ReflectionTestUtils.setField(emailService, "fromEmail", "noreply@bingoai.com");
+        ReflectionTestUtils.setField(emailService, "mailHost", "smtp.test.com");
         ReflectionTestUtils.setField(emailService, "mailEnabled", true);
     }
 

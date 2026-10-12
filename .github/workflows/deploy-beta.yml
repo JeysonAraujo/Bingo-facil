@@ -28,6 +28,7 @@ jobs:
   deploy-backend:
     name: ☕ Build & Deploy Backend (Cloud Run)
     runs-on: ubuntu-latest
+    if: ${{ secrets.GCP_SA_KEY != '' }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -97,6 +98,7 @@ jobs:
   deploy-frontend:
     name: ⚡ Build & Deploy Frontend (Firebase Hosting)
     runs-on: ubuntu-latest
+    if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BINGO_FACIL != '' }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -140,6 +142,7 @@ jobs:
     name: 🧪 Automated Post-Deploy Smoke Test
     needs: [deploy-backend, deploy-frontend]
     runs-on: ubuntu-latest
+    if: ${{ always() && secrets.GCP_SA_KEY != '' && secrets.FIREBASE_SERVICE_ACCOUNT_BINGO_FACIL != '' }}
     steps:
       - name: Verify Backend Actuator Health
         run: |

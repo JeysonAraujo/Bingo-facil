@@ -632,6 +632,8 @@ const handleSendResetCode = async (adminId: string) => {
     const success = await adminStore.sendAdminResetCode(adminId)
     if (success) {
       alert('Código gerado e enviado com sucesso para o e-mail cadastrado!')
+    } else {
+      alert(adminStore.error || 'Erro ao enviar código de recuperação.')
     }
   }
 }

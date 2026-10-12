@@ -24,6 +24,9 @@ public class SmtpEmailService implements EmailService {
     @Value("${spring.mail.username:noreply@bingoai.com}")
     private String fromEmail;
 
+    @Value("${spring.mail.host:localhost}")
+    private String mailHost;
+
     @Value("${app.mail.enabled:true}")
     private boolean mailEnabled;
 
@@ -32,6 +35,14 @@ public class SmtpEmailService implements EmailService {
         if (!mailEnabled || mailSender == null) {
             log.warn("[EMAIL SERVICE] E-mail sending is disabled or JavaMailSender is not configured. Reset email was NOT dispatched to {}", toEmail);
             return;
+        }
+
+        if ("localhost".equalsIgnoreCase(mailHost) || mailHost.isBlank()) {
+            log.warn("[EMAIL SERVICE] Servidor SMTP externo não configurado (host atual: '{}'). Configure as variáveis SPRING_MAIL_HOST, SPRING_MAIL_USERNAME e SPRING_MAIL_PASSWORD no Cloud Run para enviar e-mails reais.", mailHost);
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Servidor de e-mail (SMTP) ainda não configurado no servidor. Configure as variáveis SPRING_MAIL_HOST, SPRING_MAIL_USERNAME e SPRING_MAIL_PASSWORD no Cloud Run."
+            );
         }
 
         try {
@@ -50,8 +61,8 @@ public class SmtpEmailService implements EmailService {
         } catch (MessagingException | MailException e) {
             log.error("[EMAIL SERVICE] Failed to send password reset email to {}: {}", toEmail, e.getMessage());
             throw new ResponseStatusException(
-                    HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Não foi possível enviar o e-mail de recuperação. Verifique as configurações de e-mail do servidor."
+                    HttpStatus.BAD_GATEWAY,
+                    "Não foi possível conectar ao servidor de e-mail (" + mailHost + "). Verifique as configurações de SMTP."
             );
         }
     }
