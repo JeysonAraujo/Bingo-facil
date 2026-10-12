@@ -15,11 +15,11 @@ on:
           - staging
 
 env:
-  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID || 'bingo-facil-beta' }}
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID || 'bingo-facil-507801' }}
   GCP_REGION: ${{ secrets.GCP_REGION || 'southamerica-east1' }}
-  ARTIFACT_REGISTRY_REPO: bingo-backend-repo
-  CLOUD_RUN_SERVICE: bingo-backend-beta
-  CLOUD_SQL_INSTANCE: ${{ secrets.CLOUD_SQL_INSTANCE || 'bingo-facil-beta:southamerica-east1:bingo-db' }}
+  ARTIFACT_REGISTRY_REPO: bingo-facil
+  CLOUD_RUN_SERVICE: bingo-facil-api
+  CLOUD_SQL_INSTANCE: ${{ secrets.CLOUD_SQL_INSTANCE || 'bingo-facil-507801:southamerica-east1:bingo-facil-db' }}
 
 jobs:
   # ==========================================
@@ -84,8 +84,8 @@ jobs:
             --memory=512Mi
           env_vars: |
             SPRING_PROFILES_ACTIVE=beta
-            SPRING_DATASOURCE_URL=jdbc:postgresql:///${{ secrets.DB_NAME || 'bingodb' }}?socketFactory=com.google.cloud.sql.postgres.SocketFactory&cloudSqlInstance=${{ env.CLOUD_SQL_INSTANCE }}
-            CORS_ALLOWED_ORIGINS=${{ secrets.FRONTEND_BETA_URL || 'https://bingo-facil-beta.web.app' }}
+            SPRING_DATASOURCE_URL=jdbc:postgresql:///${{ secrets.DB_NAME || 'bingo' }}?socketFactory=com.google.cloud.sql.postgres.SocketFactory&cloudSqlInstance=${{ env.CLOUD_SQL_INSTANCE }}
+            CORS_ALLOWED_ORIGINS=${{ secrets.FRONTEND_BETA_URL || 'https://bingo-facil-c1f23.web.app' }}
           secrets: |
             SPRING_DATASOURCE_USERNAME=db-user-secret:latest
             SPRING_DATASOURCE_PASSWORD=db-password-secret:latest
@@ -119,8 +119,8 @@ jobs:
       - name: Build Frontend Production Artifact
         working-directory: bingo-frontend
         env:
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'https://bingo-backend-beta-southamerica-east1.a.run.app' }}
-          VITE_WS_BASE_URL: ${{ secrets.VITE_WS_BASE_URL || 'https://bingo-backend-beta-southamerica-east1.a.run.app/ws/bingo' }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'https://bingo-facil-api-957350013226.southamerica-east1.run.app/api/v1' }}
+          VITE_WS_BASE_URL: ${{ secrets.VITE_WS_BASE_URL || 'wss://bingo-facil-api-957350013226.southamerica-east1.run.app/ws/bingo' }}
         run: npm run build-only
 
       - name: Deploy to Firebase Hosting
@@ -129,7 +129,7 @@ jobs:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_BINGO_FACIL }}'
           channelId: live
-          projectId: ${{ secrets.FIREBASE_PROJECT_ID || 'bingo-facil-beta' }}
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID || 'bingo-facil-c1f23' }}
         env:
           FIREBASE_CLI_PREVIEWS: true
 
@@ -143,7 +143,7 @@ jobs:
     steps:
       - name: Verify Backend Actuator Health
         run: |
-          HEALTH_URL="${{ secrets.BACKEND_HEALTH_URL || 'https://bingo-backend-beta-southamerica-east1.a.run.app/actuator/health' }}"
+          HEALTH_URL="${{ secrets.BACKEND_HEALTH_URL || 'https://bingo-facil-api-957350013226.southamerica-east1.run.app/actuator/health' }}"
           echo "Pinging Health Check: $HEALTH_URL"
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL || echo "000")
           if [ "$RESPONSE" -eq 200 ]; then
@@ -154,7 +154,7 @@ jobs:
 
       - name: Verify Frontend Web Reachability
         run: |
-          FRONTEND_URL="${{ secrets.FRONTEND_BETA_URL || 'https://bingo-facil-beta.web.app' }}"
+          FRONTEND_URL="${{ secrets.FRONTEND_BETA_URL || 'https://bingo-facil-c1f23.web.app' }}"
           echo "Pinging Frontend Index: $FRONTEND_URL"
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $FRONTEND_URL || echo "000")
           if [ "$RESPONSE" -eq 200 ]; then

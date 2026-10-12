@@ -33,6 +33,9 @@ app:
   activation-base-url: ${FRONTEND_BETA_URL}
 
 management:
+  health:
+    mail:
+      enabled: false
   endpoint:
     health:
       probes:
