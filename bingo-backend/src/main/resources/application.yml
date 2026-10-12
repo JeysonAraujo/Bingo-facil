@@ -28,10 +28,27 @@ spring:
     locations: classpath:db/migration
     clean-on-validation-error: true
     clean-disabled: false
+  mail:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:noreply@bingoai.com}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SPRING_MAIL_AUTH:false}
+          starttls:
+            enable: ${SPRING_MAIL_STARTTLS:false}
+            required: false
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 server:
   port: 8080
 
 app:
   activation-base-url: http://localhost:3000
+  mail:
+    enabled: ${APP_MAIL_ENABLED:true}
 

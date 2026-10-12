@@ -2,16 +2,18 @@ package com.bingoai.backend.admin;
 
 import com.bingoai.backend.admin.dto.AdminDto;
 import com.bingoai.backend.common.dto.ApiResponse;
+import com.bingoai.backend.common.mail.EmailService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
-import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -22,11 +24,18 @@ public class AdminManagementController {
 
     private final AdminRepository adminRepository;
     private final AdminSessionRepository adminSessionRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     public AdminManagementController(AdminRepository adminRepository,
-                                     AdminSessionRepository adminSessionRepository) {
+                                     AdminSessionRepository adminSessionRepository,
+                                     PasswordEncoder passwordEncoder,
+                                     EmailService emailService) {
         this.adminRepository = adminRepository;
         this.adminSessionRepository = adminSessionRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.emailService = emailService;
     }
 
     @GetMapping("/admins")
@@ -67,20 +76,16 @@ public class AdminManagementController {
         Admin admin = adminRepository.findById(Objects.requireNonNull(id))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Administrador não encontrado."));
 
-        // Generate 6-digit code
-        String code = String.format("%06d", new Random().nextInt(999999));
-        admin.setResetCode(code);
+        // Generate 6-digit code securely
+        String code = String.format("%06d", secureRandom.nextInt(1_000_000));
+        admin.setResetCode(passwordEncoder.encode(code));
         admin.setResetCodeExpiresAt(OffsetDateTime.now().plusMinutes(15));
         adminRepository.save(admin);
 
-        // Print mock email to console
-        System.out.println("==================================================");
-        System.out.println("[EMAIL MOCK - SUPERADMIN INITIATED] Para: " + admin.getEmail());
-        System.out.println("[EMAIL MOCK - SUPERADMIN INITIATED] Assunto: Código de Recuperação de Senha");
-        System.out.println("[EMAIL MOCK - SUPERADMIN INITIATED] Corpo: Seu código de recuperação é: " + code);
-        System.out.println("==================================================");
+        // Dispatch via EmailService
+        emailService.sendPasswordResetEmail(admin.getEmail(), code);
 
-        return ResponseEntity.ok(ApiResponse.success("Código de recuperação enviado. Verifique o console do servidor. Código gerado: " + code));
+        return ResponseEntity.ok(ApiResponse.success("Código de recuperação enviado com sucesso para o e-mail cadastrado."));
     }
 
     @DeleteMapping("/admins/{id}")

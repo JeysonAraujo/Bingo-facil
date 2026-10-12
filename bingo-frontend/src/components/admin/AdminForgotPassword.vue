@@ -81,7 +81,7 @@
           <!-- Step 2: Validate Code and Change Password -->
           <v-form v-else ref="formReset" v-model="formValid" @submit.prevent="handleResetPassword">
             <p class="text-body-2 text-grey-darken-3 mb-4">
-              Código de verificação enviado! Verifique o console do Spring Boot, digite o código de 6 dígitos e defina sua nova senha.
+              Código de verificação enviado! Verifique sua caixa de entrada de e-mail (e spam), digite o código de 6 dígitos recebido e defina sua nova senha.
             </p>
 
             <!-- Readonly Email -->
@@ -183,7 +183,7 @@ const handleRequestCode = async () => {
   infoMsg.value = null
   const success = await authStore.forgotPassword(email.value)
   if (success) {
-    infoMsg.value = 'Código de verificação gerado! Verifique a aba console do seu servidor Spring Boot.'
+    infoMsg.value = 'Código de verificação enviado para o seu e-mail cadastrado! Por favor, verifique sua caixa de entrada e spam.'
     step.value = 2
   }
 }

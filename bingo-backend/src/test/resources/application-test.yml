@@ -11,3 +11,10 @@ spring:
   flyway:
     enabled: true
     clean-on-validation-error: true
+  mail:
+    host: localhost
+
+app:
+  mail:
+    enabled: false
+

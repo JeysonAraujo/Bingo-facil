@@ -2,6 +2,7 @@ package com.bingoai.backend.admin;
 
 import com.bingoai.backend.common.dto.ApiResponse;
 import com.bingoai.backend.admin.dto.*;
+import com.bingoai.backend.common.mail.EmailService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,8 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.security.SecureRandom;
 import java.time.OffsetDateTime;
-import java.util.Random;
 import java.util.UUID;
 
 @RestController
@@ -22,13 +23,17 @@ public class AuthController {
     private final AdminRepository adminRepository;
     private final AdminSessionRepository adminSessionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     public AuthController(AdminRepository adminRepository,
                           AdminSessionRepository adminSessionRepository,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          EmailService emailService) {
         this.adminRepository = adminRepository;
         this.adminSessionRepository = adminSessionRepository;
         this.passwordEncoder = passwordEncoder;
+        this.emailService = emailService;
     }
 
     @PostMapping("/login")
@@ -78,20 +83,16 @@ public class AuthController {
         Admin admin = adminRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "E-mail não encontrado."));
 
-        // Generate 6-digit code
-        String code = String.format("%06d", new Random().nextInt(999999));
-        admin.setResetCode(code);
+        // Generate 6-digit code securely
+        String code = String.format("%06d", secureRandom.nextInt(1_000_000));
+        admin.setResetCode(passwordEncoder.encode(code));
         admin.setResetCodeExpiresAt(OffsetDateTime.now().plusMinutes(15));
         adminRepository.save(admin);
 
-        // Print mock email to console
-        System.out.println("==================================================");
-        System.out.println("[EMAIL MOCK] Para: " + admin.getEmail());
-        System.out.println("[EMAIL MOCK] Assunto: Código de Recuperação de Senha");
-        System.out.println("[EMAIL MOCK] Corpo: Seu código de recuperação é: " + code);
-        System.out.println("==================================================");
+        // Send via EmailService
+        emailService.sendPasswordResetEmail(admin.getEmail(), code);
 
-        return ResponseEntity.ok(ApiResponse.success("Código de recuperação enviado. Verifique o console do servidor."));
+        return ResponseEntity.ok(ApiResponse.success("Código de recuperação enviado com sucesso para o e-mail cadastrado."));
     }
 
     @PostMapping("/reset-password")
@@ -99,7 +100,7 @@ public class AuthController {
         Admin admin = adminRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dados inválidos."));
 
-        if (admin.getResetCode() == null || !admin.getResetCode().equals(request.code())) {
+        if (admin.getResetCode() == null || !passwordEncoder.matches(request.code(), admin.getResetCode())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Código de recuperação inválido.");
         }
 
@@ -112,6 +113,9 @@ public class AuthController {
         admin.setResetCode(null);
         admin.setResetCodeExpiresAt(null);
         adminRepository.save(admin);
+
+        // Invalidate active sessions
+        adminSessionRepository.deleteByAdminId(admin.getId());
 
         return ResponseEntity.ok(ApiResponse.success("Senha alterada com sucesso."));
     }

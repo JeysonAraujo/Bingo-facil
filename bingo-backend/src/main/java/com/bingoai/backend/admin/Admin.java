@@ -1,5 +1,6 @@
 package com.bingoai.backend.admin;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -15,6 +16,7 @@ public class Admin {
     @Column(nullable = false, unique = true)
     private String username;
 
+    @JsonIgnore
     @Column(nullable = false)
     private String password;
 
@@ -24,9 +26,11 @@ public class Admin {
     @Column(nullable = false)
     private String role; // e.g., "ROLE_SUPER_ADMIN" or "ROLE_ADMIN"
 
-    @Column(name = "reset_code", length = 6)
+    @JsonIgnore
+    @Column(name = "reset_code", length = 255)
     private String resetCode;
 
+    @JsonIgnore
     @Column(name = "reset_code_expires_at")
     private OffsetDateTime resetCodeExpiresAt;
 

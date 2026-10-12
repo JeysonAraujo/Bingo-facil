@@ -627,11 +627,11 @@ const handleToggleActive = async (adminId: string) => {
 }
 
 const handleSendResetCode = async (adminId: string) => {
-  const confirmAction = window.confirm('Deseja realmente gerar um código de recuperação de senha para este administrador? O código será exibido no console do servidor.')
+  const confirmAction = window.confirm('Deseja realmente gerar um código de recuperação de senha para este administrador? O código será enviado para o e-mail cadastrado.')
   if (confirmAction) {
     const success = await adminStore.sendAdminResetCode(adminId)
     if (success) {
-      alert('Código gerado com sucesso! Verifique o console do backend.')
+      alert('Código gerado e enviado com sucesso para o e-mail cadastrado!')
     }
   }
 }
