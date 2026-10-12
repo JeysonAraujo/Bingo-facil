@@ -43,7 +43,11 @@ export type WsConnectionStatus = 'disconnected' | 'connecting' | 'connected' | '
 export function getWsBaseUrl(): string {
   if (import.meta.env.VITE_WS_BASE_URL) {
     let url = import.meta.env.VITE_WS_BASE_URL as string;
-    return url.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:');
+    url = url.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:');
+    if (!url.endsWith('/websocket')) {
+      url = url.replace(/\/+$/, '') + '/websocket';
+    }
+    return url;
   }
   const apiBase = getApiBaseUrl()
   const rootUrl = apiBase.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '')

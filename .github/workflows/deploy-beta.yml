@@ -2,7 +2,7 @@ name: Deploy Beta Pipeline (Cloud Run & Firebase Hosting)
 
 on:
   push:
-    branches: [ "beta", "main" ]
+    branches: [ "beta", "BETA", "main" ]
   workflow_dispatch:
     inputs:
       environment:
@@ -129,7 +129,7 @@ jobs:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_BINGO_FACIL }}'
           channelId: live
-          projectId: bingo-facil-beta
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID || 'bingo-facil-beta' }}
         env:
           FIREBASE_CLI_PREVIEWS: true
 
