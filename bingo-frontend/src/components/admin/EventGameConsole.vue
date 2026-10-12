@@ -73,8 +73,16 @@
           <v-window v-model="activeTab" class="pa-6">
             <!-- TAB 1: Live Sorteio Grid Board -->
             <v-window-item value="draw">
+              <!-- Event Finalized Alert Banner -->
+              <div v-if="isEventFinalized" class="bg-amber-darken-4 text-white py-3 px-6 rounded-lg d-flex align-center gap-3 mb-6">
+                <v-icon icon="mdi-lock-outline" color="amber-lighten-4"></v-icon>
+                <span class="text-subtitle-2 font-weight-bold">
+                  Evento Finalizado: Este evento foi encerrado. Novos sorteios e ações estão bloqueados e o broker foi desconectado.
+                </span>
+              </div>
+
               <!-- No Round Active Alert Banner -->
-              <div v-if="!isRoundInProgress" class="bg-red-darken-4 text-white py-3 px-6 rounded-lg d-flex align-center gap-3 mb-6">
+              <div v-else-if="!isRoundInProgress" class="bg-red-darken-4 text-white py-3 px-6 rounded-lg d-flex align-center gap-3 mb-6">
                 <v-icon icon="mdi-alert-circle-outline" color="amber-darken-1" class="animated-shake"></v-icon>
                 <span class="text-subtitle-2 font-weight-bold">
                   Painel Bloqueado: Nenhuma rodada está em andamento. Inicie uma rodada abaixo para liberar o sorteio.
@@ -107,7 +115,7 @@
               </div>
 
               <!-- The 75-Key Grid Panel -->
-              <div class="bingo-grid-board" :class="{ 'board-disabled': !isRoundInProgress }">
+              <div class="bingo-grid-board" :class="{ 'board-disabled': isEventFinalized || !isRoundInProgress }">
                 <div
                   v-for="ball in orderedBalls"
                   :key="ball"
@@ -1171,7 +1179,9 @@ const handleDownloadPdf = async () => {
 // Computed properties
 const eventTitle = computed(() => adminStore.activeConsoleEvent?.title || 'Carregando…')
 const isConnected = computed(() => adminStore.isConnected)
+const isEventFinalized = computed(() => adminStore.activeConsoleEvent?.status === 'FINALIZADO')
 const isRoundInProgress = computed(() => {
+  if (isEventFinalized.value) return false
   return adminStore.activeConsoleEvent?.rounds?.some(r => r.status === 'IN_PROGRESS') || false
 })
 
@@ -1395,8 +1405,12 @@ onMounted(async () => {
     }
   }
 
-  // Establish WebSockets
-  adminStore.connectAdminWebSocket(eventId)
+  // Establish WebSockets only if event is not finalized
+  if (adminStore.activeConsoleEvent?.status !== 'FINALIZADO') {
+    adminStore.connectAdminWebSocket(eventId)
+  } else {
+    adminStore.disconnectAdminWebSocket()
+  }
 
   // Add global keydown event listener for administrative hotkeys
   window.addEventListener('keydown', handleGlobalKeydown)
@@ -1453,7 +1467,7 @@ const getLetterForBall = (ball: number): string => {
  * and confirms draw on second click if done within 500ms (Double Click guard).
  */
 const handleBallClick = (ball: number) => {
-  if (!isRoundInProgress.value) return
+  if (isEventFinalized.value || !isRoundInProgress.value) return
   if (isDrawn(ball)) return
 
   if (pendingBall.value === ball) {
@@ -1477,7 +1491,7 @@ const handleBallClick = (ball: number) => {
  * Triggers the actual draw over STOMP WebSocket draws app prefix.
  */
 const confirmDraw = (ball: number) => {
-  if (!isRoundInProgress.value) return
+  if (isEventFinalized.value || !isRoundInProgress.value) return
   if (isDrawn(ball)) return
 
   const nextSequence = adminStore.drawnConsoleNumbers.length + 1
@@ -1552,6 +1566,7 @@ const toggleCellOverride = (ball: number) => {
  * - Pressing 'Ctrl+Z' triggers the UNDO operation.
  */
 const handleGlobalKeydown = (event: KeyboardEvent) => {
+  if (isEventFinalized.value) return
   // Disable if no active round is running
   if (!isRoundInProgress.value) return
 

@@ -54,8 +54,12 @@ public class GameService {
      */
     public Round getOrCreateActiveRound(UUID eventId) {
         // Ensure event exists
-        eventRepository.findById(eventId)
+        Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
+
+        if (com.bingoai.backend.event.EventStatus.FINALIZADO.equals(event.getStatus())) {
+            throw new IllegalStateException("O evento já está finalizado. Nenhuma rodada pode ser iniciada.");
+        }
 
         return roundRepository.findFirstByEventIdAndStatus(eventId, com.bingoai.backend.event.RoundStatus.IN_PROGRESS)
                 .orElseGet(() -> {
@@ -95,6 +99,13 @@ public class GameService {
      * Records a new ball draw in the database for the active round.
      */
     public DrawBallMessage recordDraw(UUID eventId, int ballNumber, int sequence) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
+
+        if (com.bingoai.backend.event.EventStatus.FINALIZADO.equals(event.getStatus())) {
+            throw new IllegalStateException("O evento já está finalizado. Não é permitido sortear novos números.");
+        }
+
         Round round = roundRepository.findFirstByEventIdAndStatus(eventId, com.bingoai.backend.event.RoundStatus.IN_PROGRESS)
                 .orElseThrow(() -> new IllegalStateException("Nenhuma rodada está em andamento para este evento. Inicie uma rodada antes de sortear números."));
 
@@ -189,6 +200,13 @@ public class GameService {
      * for the active round, returning its representation for visual retraction broadcast.
      */
     public DrawBallMessage retractLastDraw(UUID eventId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found with ID: " + eventId));
+
+        if (com.bingoai.backend.event.EventStatus.FINALIZADO.equals(event.getStatus())) {
+            throw new IllegalStateException("O evento já está finalizado. Não é permitido cancelar sorteios.");
+        }
+
         Round round = roundRepository.findFirstByEventIdAndStatus(eventId, com.bingoai.backend.event.RoundStatus.IN_PROGRESS)
                 .orElseThrow(() -> new IllegalStateException("Nenhuma rodada está em andamento para este evento."));
 

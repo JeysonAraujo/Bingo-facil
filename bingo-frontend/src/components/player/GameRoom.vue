@@ -675,6 +675,13 @@ async function initializeGame() {
   // 0. Recover event details
   await gameStore.fetchEventDetails(activeEventId)
   
+  // Guard: If event is already finalized, disconnect broker and display end modal
+  if (gameStore.eventDetails?.status === 'FINALIZADO') {
+    gameStore.isBingoFinished = true
+    gameStore.disconnectFromGame()
+    return
+  }
+  
   // 1. Recover chronological history from database
   await gameStore.fetchInitialDraws(activeEventId)
 
@@ -1263,6 +1270,12 @@ onMounted(async () => {
 onUnmounted(() => {
   // Cleanly disconnect WebSocket when the player leaves the room
   gameStore.disconnectFromGame()
+})
+
+watch(() => gameStore.isBingoFinished, (isFinished) => {
+  if (isFinished) {
+    gameStore.disconnectFromGame()
+  }
 })
 
 function handleLogout() {

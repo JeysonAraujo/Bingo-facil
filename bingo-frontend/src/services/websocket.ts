@@ -1,5 +1,4 @@
 import { Client, type IMessage } from '@stomp/stompjs'
-import SockJS from 'sockjs-client/dist/sockjs.min.js'
 import { getApiBaseUrl } from './api'
 
 // ─── Typed WebSocket Message Interfaces ──────────────────────────────────────
@@ -44,22 +43,21 @@ export type WsConnectionStatus = 'disconnected' | 'connecting' | 'connected' | '
 export function getWsBaseUrl(): string {
   if (import.meta.env.VITE_WS_BASE_URL) {
     let url = import.meta.env.VITE_WS_BASE_URL as string;
-    return url.replace(/^wss:/i, 'https:').replace(/^ws:/i, 'http:');
+    return url.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:');
   }
   const apiBase = getApiBaseUrl()
   const rootUrl = apiBase.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '')
-  return `${rootUrl}/ws/bingo`
+  const wsUrl = rootUrl.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:')
+  return `${wsUrl}/ws/bingo/websocket`
 }
+
+export const getWsBrokerUrl = getWsBaseUrl
 
 /**
  * Creates, configures, and activates a STOMP client connected to the bingo backend.
  *
- * Uses SockJS fallback for browsers that do not support native WebSocket or are
- * behind restrictive proxies (e.g., HTTP/1.1 load balancers that do not support
- * WebSocket upgrade).
- *
- * IMPORTANT: Import SockJS from 'sockjs-client/dist/sockjs.min.js' (not the default
- * export) to avoid CJS/ESM compatibility issues with Vite's ESM bundler.
+ * Uses native WebSocket RFC 6455 connection via brokerURL, avoiding deprecated unload
+ * permissions policy violations in modern Chromium/Safari browsers.
  *
  * @param eventId         The UUID of the active bingo event to subscribe to
  * @param sessionToken    The player's session JWT (sent in CONNECT headers for future auth)
@@ -89,10 +87,10 @@ export function createWebSocketClient(
   onNaBoa?: (count: number) => void,
   onEventStatus?: (status: string) => void
 ): Client {
-  const wsUrl = getWsBaseUrl()
+  const brokerUrl = getWsBrokerUrl()
   const client = new Client({
-    // SockJS factory: provides HTTP long-polling fallback automatically
-    webSocketFactory: () => new SockJS(wsUrl),
+    // Standard RFC 6455 WebSocket endpoint (no SockJS unload violation)
+    brokerURL: brokerUrl,
 
     // Include session token in STOMP CONNECT frame headers
     // (full JWT auth to be enforced in Story 5.x; currently permissive)

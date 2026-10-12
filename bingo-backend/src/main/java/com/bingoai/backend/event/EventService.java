@@ -18,15 +18,18 @@ import org.springframework.lang.NonNull;
 public class EventService {
 
     private final EventRepository eventRepository;
+    private final RoundRepository roundRepository;
     private final com.bingoai.backend.ticket.TicketRepository ticketRepository;
     private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
     private final com.bingoai.backend.audit.AuditLogService auditLogService;
 
     public EventService(EventRepository eventRepository,
+                        RoundRepository roundRepository,
                         com.bingoai.backend.ticket.TicketRepository ticketRepository,
                         org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate,
                         com.bingoai.backend.audit.AuditLogService auditLogService) {
         this.eventRepository = eventRepository;
+        this.roundRepository = roundRepository;
         this.ticketRepository = ticketRepository;
         this.messagingTemplate = messagingTemplate;
         this.auditLogService = auditLogService;
@@ -228,6 +231,16 @@ public class EventService {
         auditLogService.logAction(admin, "UPDATE_EVENT_STATUS", "Updated event " + id + " status to " + status);
         
         if (EventStatus.FINALIZADO.equals(saved.getStatus())) {
+            // Also ensure all rounds of this event are marked FINISHED
+            if (saved.getRounds() != null) {
+                for (Round r : saved.getRounds()) {
+                    if (!RoundStatus.FINISHED.equals(r.getStatus())) {
+                        r.setStatus(RoundStatus.FINISHED);
+                        roundRepository.save(r);
+                    }
+                }
+            }
+
             // Send STOMP message before invalidating tokens
             messagingTemplate.convertAndSend(
                     "/topic/events/" + id + "/status",
@@ -264,6 +277,7 @@ public class EventService {
         }
         
         eventRepository.delete(event);
+        auditLogService.logAction(admin, "DELETE_EVENT", "Deleted event: " + id + " (" + event.getTitle() + ")");
     }
 
     @Transactional

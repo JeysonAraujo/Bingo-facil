@@ -357,6 +357,14 @@ export const useAdminStore = defineStore('admin', {
         undefined, // onViewersChange
         (count) => {
           this.ticketsNaBoaCount = count
+        },
+        (status) => {
+          if (this.activeConsoleEvent) {
+            this.activeConsoleEvent.status = status
+          }
+          if (status === 'FINALIZADO') {
+            this.disconnectAdminWebSocket()
+          }
         }
       )
     },
@@ -514,6 +522,10 @@ export const useAdminStore = defineStore('admin', {
      * Publishes a new draw command to the backend WebSocket app prefix.
      */
     sendDrawBall(eventId: string, ballNumber: number, sequence: number) {
+      if (this.activeConsoleEvent?.status === 'FINALIZADO') {
+        console.warn('[AdminStore] Cannot draw ball: Event is finalized.')
+        return
+      }
       if (this._wsAdminClient && this._wsAdminClient.connected) {
         this._wsAdminClient.publish({
           destination: `/app/events/${eventId}/draw`,
@@ -531,6 +543,10 @@ export const useAdminStore = defineStore('admin', {
      * Publishes an undo retraction command to the backend WebSocket.
      */
     sendUndoLastDraw(eventId: string) {
+      if (this.activeConsoleEvent?.status === 'FINALIZADO') {
+        console.warn('[AdminStore] Cannot undo draw: Event is finalized.')
+        return
+      }
       if (this._wsAdminClient && this._wsAdminClient.connected) {
         this._wsAdminClient.publish({
           destination: `/app/events/${eventId}/undo`

@@ -112,9 +112,93 @@
       </v-col>
     </v-row>
 
+    <!-- Events Filter Bar -->
+    <v-row v-if="adminStore.events.length > 0" class="mb-4 align-center">
+      <v-col cols="12" sm="8" class="d-flex flex-wrap gap-2 align-center">
+        <v-btn-toggle
+          v-model="selectedStatusFilter"
+          color="indigo-darken-3"
+          mandatory
+          variant="outlined"
+          density="comfortable"
+          rounded="lg"
+          class="border-subcard bg-white"
+        >
+          <v-btn value="ALL" class="text-capitalize font-weight-bold">
+            Todos ({{ allCount }})
+          </v-btn>
+          <v-btn value="ACTIVE_WAITING" class="text-capitalize font-weight-bold">
+            Ativos / Aguardando ({{ activeWaitingCount }})
+          </v-btn>
+          <v-btn value="FINALIZADO" class="text-capitalize font-weight-bold">
+            Finalizados ({{ finalizedCount }})
+          </v-btn>
+        </v-btn-toggle>
+      </v-col>
+
+      <v-col cols="12" sm="4" class="d-flex justify-sm-end align-center gap-2">
+        <v-btn
+          v-if="hiddenCount > 0"
+          :color="showHiddenEvents ? 'indigo-darken-3' : 'grey-darken-2'"
+          :variant="showHiddenEvents ? 'flat' : 'outlined'"
+          size="small"
+          rounded="lg"
+          prepend-icon="mdi-eye-off-outline"
+          class="text-capitalize font-weight-bold"
+          @click="showHiddenEvents = !showHiddenEvents"
+        >
+          {{ showHiddenEvents ? 'Voltar aos Eventos' : `Ocultos (${hiddenCount})` }}
+        </v-btn>
+        <v-btn
+          v-if="showHiddenEvents && hiddenCount > 0"
+          color="amber-darken-3"
+          variant="text"
+          size="small"
+          prepend-icon="mdi-restore"
+          class="text-capitalize font-weight-bold"
+          @click="restoreAllHidden"
+        >
+          Restaurar Todos
+        </v-btn>
+      </v-col>
+    </v-row>
+
+    <!-- Empty Filtered Results State -->
+    <v-row v-if="adminStore.events.length > 0 && filteredEvents.length === 0" justify="center" class="py-10">
+      <v-col cols="12" md="6" class="text-center">
+        <v-card class="pa-6 elevation-1 rounded-lg border-dashed">
+          <v-icon icon="mdi-filter-variant-remove" size="48" color="grey-lighten-1" class="mb-3"></v-icon>
+          <h3 class="text-h6 font-weight-bold mb-2">Nenhum evento nesta categoria</h3>
+          <p class="text-body-2 text-grey-darken-1 mb-4">
+            {{ showHiddenEvents ? 'Nenhum evento oculto no momento.' : 'Não há eventos com o status selecionado.' }}
+          </p>
+          <v-btn
+            v-if="showHiddenEvents"
+            color="primary"
+            variant="outlined"
+            size="small"
+            class="text-capitalize font-weight-bold"
+            @click="showHiddenEvents = false"
+          >
+            Voltar aos Eventos Ativos
+          </v-btn>
+          <v-btn
+            v-else
+            color="primary"
+            variant="outlined"
+            size="small"
+            class="text-capitalize font-weight-bold"
+            @click="selectedStatusFilter = 'ALL'"
+          >
+            Ver Todos os Eventos
+          </v-btn>
+        </v-card>
+      </v-col>
+    </v-row>
+
     <!-- Events Grid -->
-    <v-row v-else>
-      <v-col v-for="event in adminStore.events" :key="event.id" cols="12" md="6" lg="4">
+    <v-row v-else-if="filteredEvents.length > 0">
+      <v-col v-for="event in filteredEvents" :key="event.id" cols="12" md="6" lg="4">
         <v-card class="elevation-2 rounded-lg border-card h-100 d-flex flex-column transition-card">
           <!-- Card Header Banner -->
           <v-card-item class="bg-indigo-lighten-5 py-4 border-bottom-indigo">
@@ -238,6 +322,28 @@
                 Editar
               </v-btn>
               <v-btn
+                v-if="showHiddenEvents"
+                color="indigo-darken-2"
+                variant="outlined"
+                prepend-icon="mdi-eye-outline"
+                class="flex-grow-1 ml-1 rounded-lg"
+                @click="unhideEvent(event.id)"
+              >
+                Reexibir
+              </v-btn>
+              <v-btn
+                v-else-if="event.status === 'FINALIZADO'"
+                color="blue-grey-darken-1"
+                variant="outlined"
+                prepend-icon="mdi-eye-off-outline"
+                class="flex-grow-1 ml-1 rounded-lg"
+                title="Ocultar este evento finalizado do painel"
+                @click="hideEvent(event.id)"
+              >
+                Ocultar
+              </v-btn>
+              <v-btn
+                v-else
                 color="red-darken-1"
                 variant="outlined"
                 prepend-icon="mdi-delete"
@@ -422,7 +528,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAdminStore } from '../../stores/admin'
 import { useAuthStore } from '../../stores/auth'
@@ -430,6 +536,67 @@ import { useAuthStore } from '../../stores/auth'
 const adminStore = useAdminStore()
 const authStore = useAuthStore()
 const router = useRouter()
+
+// Status and visibility filtering
+const selectedStatusFilter = ref<'ALL' | 'ACTIVE_WAITING' | 'FINALIZADO'>('ALL')
+const showHiddenEvents = ref(false)
+const hiddenEventIds = ref<string[]>(JSON.parse(localStorage.getItem('admin_hidden_events') || '[]'))
+
+const hideEvent = (eventId: string) => {
+  if (!hiddenEventIds.value.includes(eventId)) {
+    hiddenEventIds.value.push(eventId)
+    localStorage.setItem('admin_hidden_events', JSON.stringify(hiddenEventIds.value))
+  }
+}
+
+const unhideEvent = (eventId: string) => {
+  hiddenEventIds.value = hiddenEventIds.value.filter(id => id !== eventId)
+  localStorage.setItem('admin_hidden_events', JSON.stringify(hiddenEventIds.value))
+  if (hiddenEventIds.value.length === 0) {
+    showHiddenEvents.value = false
+  }
+}
+
+const restoreAllHidden = () => {
+  hiddenEventIds.value = []
+  localStorage.removeItem('admin_hidden_events')
+  showHiddenEvents.value = false
+}
+
+const allCount = computed(() => {
+  return adminStore.events.filter(e => !hiddenEventIds.value.includes(e.id)).length
+})
+
+const activeWaitingCount = computed(() => {
+  return adminStore.events.filter(e => !hiddenEventIds.value.includes(e.id) && (e.status === 'ATIVO' || !e.status || e.status === 'AGUARDANDO')).length
+})
+
+const finalizedCount = computed(() => {
+  return adminStore.events.filter(e => !hiddenEventIds.value.includes(e.id) && e.status === 'FINALIZADO').length
+})
+
+const hiddenCount = computed(() => hiddenEventIds.value.length)
+
+const filteredEvents = computed(() => {
+  return adminStore.events.filter(event => {
+    const isHidden = hiddenEventIds.value.includes(event.id)
+    if (showHiddenEvents.value) {
+      return isHidden
+    }
+    if (isHidden) {
+      return false
+    }
+
+    const status = event.status || 'AGUARDANDO'
+    if (selectedStatusFilter.value === 'ACTIVE_WAITING') {
+      return status === 'ATIVO' || status === 'AGUARDANDO'
+    }
+    if (selectedStatusFilter.value === 'FINALIZADO') {
+      return status === 'FINALIZADO'
+    }
+    return true
+  })
+})
 
 const handleLogout = async () => {
   await authStore.logout()
