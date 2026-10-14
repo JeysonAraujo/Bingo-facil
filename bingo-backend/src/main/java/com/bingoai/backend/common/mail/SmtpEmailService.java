@@ -54,7 +54,7 @@ public class SmtpEmailService implements EmailService {
 
       helper.setFrom(fromEmail);
       helper.setTo(toEmail);
-      helper.setSubject("Código de Recuperação de Senha - Bingo-AI");
+      helper.setSubject("Código de Recuperação de Senha - Bingo Fácil");
 
       String htmlContent = buildResetPasswordTemplate(code);
       helper.setText(htmlContent, true);
@@ -81,8 +81,8 @@ public class SmtpEmailService implements EmailService {
           <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%%" style="max-width: 560px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
             <tr>
               <td style="background: linear-gradient(135deg, #1a237e 0%%, #311b92 100%%); padding: 32px 24px; text-align: center;">
-                <h1 style="color: #ffffff; margin: 0; font-size: 26px; letter-spacing: 1px;">Bingo-AI</h1>
-                <p style="color: #c5cae9; margin: 6px 0 0 0; font-size: 14px;">Plataforma de Bingo em Tempo Real</p>
+                <h1 style="color: #ffffff; margin: 0; font-size: 26px; letter-spacing: 1px;">Bingo Fácil</h1>
+                <p style="color: #c5cae9; margin: 6px 0 0 0; font-size: 14px;">Plataforma de Bingo Online</p>
               </td>
             </tr>
             <tr>
