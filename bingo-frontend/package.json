@@ -16,7 +16,7 @@
     "@mdi/font": "^7.4.47",
     "@stomp/stompjs": "^7.0.0",
     "axios": "^1.18.1",
-    "pinia": "^2.1.7",
+    "pinia": "^4.1.0",
     "roboto-fontface": "*",
     "sockjs-client": "^1.6.1",
     "vue": "^3.4.21",
