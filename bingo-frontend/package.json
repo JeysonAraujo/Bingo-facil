@@ -24,7 +24,7 @@
     "vuetify": "^3.5.9"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^20.11.28",
     "@types/sockjs-client": "^1.5.4",
