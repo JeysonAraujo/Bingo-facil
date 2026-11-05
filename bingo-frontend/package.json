@@ -29,7 +29,7 @@
     "@types/node": "^20.11.28",
     "@types/sockjs-client": "^1.5.4",
     "@vitejs/plugin-vue": "^5.0.4",
-    "npm-run-all2": "^7.0.0",
+    "npm-run-all2": "^9.0.4",
     "sass": "^1.71.1",
     "tailwindcss": "^4.0.0",
     "typescript": "~5.4.0",
