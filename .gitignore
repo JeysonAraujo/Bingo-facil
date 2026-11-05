@@ -7,6 +7,28 @@
 *.sln
 *.sw?
 
+# Agent & AI Framework Artifacts / Local History
+.agent/
+_bmad/
+_bmad-output/
+
+# Transcripts and local prompt history
+docs/Checking Bingo Implementation Readiness.md
+docs/Developing Online Bingo Platform.md
+docs/Developing The Bingo-AI Platform*.md
+docs/Developing The bingo-AI Platform*.md
+docs/Implementing Bingo*.md
+docs/Implementing Story*.md
+docs/Requesting BMad Workflow Guidance.md
+docs/Review da Story*.md
+docs/Running And Testing Application*.md
+docs/Testando A Aplica*.md
+docs/testando e corrigindo erro*.md
+docs/Teste - implementation Story*.md
+docs/Anota*.md
+docs/teste.http
+docs/TestScenarioController.java
+
 # Node / Frontend
 **/node_modules/
 **/dist/
@@ -14,8 +36,9 @@
 **/yarn-debug.log*
 **/yarn-error.log*
 **/.pnpm-debug.log*
-**/.env.local
-**/.env.*.local
+**/.env
+**/.env.*
+!**/.env.example
 
 # Java / Backend
 **/target/

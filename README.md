@@ -74,7 +74,14 @@ Na raiz do projeto, inicie o container do PostgreSQL com o Docker Compose:
 ```bash
 docker-compose up -d
 ```
-Isso iniciará o banco de dados `bingodb` na porta `5433`.
+Isso iniciará o banco de dados `bingodb` na porta `5433` com as credenciais padrão de desenvolvimento configuradas no `docker-compose.yml`:
+- **Host:** `localhost`
+- **Porta:** `5433` (mapeada internamente para `5432`)
+- **Database:** `bingodb`
+- **Usuário:** `bingo_user`
+- **Senha:** `bingo_password`
+
+> **Nota de Segurança:** As credenciais acima são exclusivas para ambiente de testes e execução local. Para implantações em ambientes de produção/homologação, as credenciais devem ser injetadas por variáveis de ambiente (`DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD`).
 
 ### Passo 2: Executar o Backend
 Navegue até o diretório `bingo-backend` e inicie a aplicação Spring Boot:
@@ -85,9 +92,17 @@ cd bingo-backend
 *(As migrações do banco de dados serão aplicadas automaticamente pelo Flyway no momento da inicialização)*.
 
 ### Passo 3: Executar o Frontend
-Em um novo terminal, navegue até o diretório `bingo-frontend`, instale as dependências e inicie o servidor de desenvolvimento:
+Em um novo terminal, navegue até o diretório `bingo-frontend`:
+
+1. Configure as variáveis de ambiente com base no exemplo:
 ```bash
 cd bingo-frontend
+cp .env.example .env
+```
+*(No Windows PowerShell: `Copy-Item .env.example .env`)*
+
+2. Instale as dependências e inicie o servidor de desenvolvimento:
+```bash
 npm install
 npm run dev
 ```
