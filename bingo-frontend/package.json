@@ -20,7 +20,7 @@
     "roboto-fontface": "*",
     "sockjs-client": "^1.6.1",
     "vue": "^3.4.21",
-    "vue-router": "^4.3.0",
+    "vue-router": "^5.4.0",
     "vuetify": "^3.5.9"
   },
   "devDependencies": {
